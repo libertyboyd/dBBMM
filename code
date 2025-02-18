@@ -1,0 +1,1906 @@
+#dBBMMhomeRange
+#install all needed packages
+remotes::install_github("SimonDedman/movegroup")
+library("movegroup")
+# install.packages("ggplot2")
+# install.packages("ggmap")
+# install.packages("magrittr")
+# install.packages("stars")
+# install.packages("lubridate")
+# install.packages("sf")
+# install.packages("starsExtra")
+# install.packages("fishtrack3d")
+# install.packages("dplyr")
+# install.packages("tidylog")
+# install.packages("remotes")
+# install.packages("beepr")
+# install.packages("raster")
+# install.packages("terra")
+# install.packages("extrafont")
+# install.packages("viridis")
+# install.packages("ape")
+
+#Do you want to install from sources the package which needs compilation? (Yes/no/cancel)
+#type in "Yes"
+
+# Clear memory
+rm(list = ls())
+#
+# #register google API
+# Google_API <- "AIzaSyDJZBXXj7ln8JyxWmsKAVJUEruFWfdcpL0"       #AIzaSyAxbzz1s4zdopMkVXjBPvU-mtPT11WAHgE #my-dissertation
+# #1. load necessary libraries
+library(magrittr)
+library(lubridate)
+library(sp)
+library(dplyr)
+library(tidylog)
+library(remotes)
+library(ggmap)
+library(viridis)
+remotes::install_github("SimonDedman/movegroup", force = TRUE)
+library(movegroup)
+library(beepr)
+library(raster)
+library(terra)
+library(ape)
+# #Load fonts
+# ###################################################################
+# library(extrafont)
+# remotes::install_version("Rttf2pt1", version = "1.3.8")
+# extrafont::font_import()
+# y
+# font_import()
+# loadfonts(device = "all")
+# ###################################################################
+#
+# #2. Set standards
+setwd("/Users/libertyboyd/Desktop/Bermuda")
+loc="/Users/libertyboyd/Desktop/Bermuda"
+saveloc="/Users/libertyboyd/Desktop/Bermuda/Output_dBBMMhomeRange/"
+scalepath = "/Users/libertyboyd/Desktop/Bermuda/Output_dBBMMhomeRange"
+dat.TZ="Atlantic/Bermuda"
+sep=","
+dec="."
+#
+# #3. Prepare Data, import cleaned detection data
+df<-read.table(paste(loc,"/TurtlePositions.csv", sep = ""),sep=sep, dec=dec,header=T)
+df <- na.omit(df)
+df$Datetime<- as.POSIXct(df$Datetime,format="%Y/%m/%d %H:%M", tz=dat.TZ)
+head(df)
+det_range<-3.7
+det_range<-as.vector(det_range)
+det_range<-as.numeric(det_range)
+
+reclocs= data.frame(col1=c(1:8), col2=c(32.34855, 32.349227, 32.349903, 32.350000, 32.347384, 32.348061, 32.348737, 32.349413), col3=c(-64.729059,-64.727673, -64.726286,-64.725000,-64.728262, -64.726876, -64.725489, -64.724103))
+colnames(reclocs) <- c("Receiver", "Lat", "Lon")
+
+#
+#
+# #4. Run dBBMMhomeRange
+movegroup(
+  data = df,
+  ID = "ID",
+  Datetime = "Datetime",
+  Lat = "Lat",
+  Lon = "Lon",
+  Group = NULL,
+  dat.TZ = "Atlantic/Bermuda",
+  proj = sp::CRS("+proj=longlat +datum=WGS84"),
+  projectedCRS = "+init=epsg:3769",
+  sensor = "VR2W",
+  moveLocError = 3.7,
+  timeDiffLong = 2,
+  timeDiffUnits = "hours",
+  center = TRUE,
+  buffpct = 3,
+  rasterExtent = NULL,
+  rasterCRS = sp::CRS("+proj=utm +zone=20 +datum=WGS84"),
+  rasterResolution = 7.4,#7.4
+  dbblocationerror  = 3.7,
+  dbbext = 4,
+  dbbwindowsize = 23,
+  writeRasterFormat = "ascii",
+  writeRasterExtension = ".asc",
+  writeRasterDatatype = "FLT4S",
+  absVolumeAreaSaveName = "VolumeArea_AbsoluteScale.csv",
+  savedir = saveloc,
+  alerts = TRUE
+)
+
+# #file.remove(paste0("/home/simon/Desktop/tmp/", list.files(path = "/home/simon/Desktop/tmp/")))
+# # Scale rasters from 0 to 1. WARNING: MAKE SURE ALL INDIVIDUAL-LEVEL UDs OF INTEREST HAVE BEEN CREATED FIRST BEFORE RUNNING SCALERASTER()
+scaleraster(
+  path = scalepath, #No terminal slash
+  pathsubsets = scalepath, # Location of files created by dBBMM.build. No terminal slash.
+  pattern = ".asc",
+  weighting = 1,
+  # weighting to divide individual and summed-scaled rasters by, for unbalanced arrays
+  format = "ascii",
+  datatype = "FLT4S",
+  bylayer = TRUE,
+  overwrite = TRUE,
+  scalefolder = "Scaled",
+  weightedsummedname = "All_Rasters_Weighted_Summed",
+  scaledweightedname = "All_Rasters_Scaled_Weighted",
+  crsloc = saveloc,
+  # location of saved CRS Rds file from dBBMM.build.R. Should be same as path.
+  returnObj = FALSE
+)
+# beep(4)
+#
+gmapsAPI = Google_API
+ggmap::register_google(key = "AIzaSyAxbzz1s4zdopMkVXjBPvU-mtPT11WAHgE", account_type = "standard", write = TRUE)
+
+
+# SD from here####
+# Now plot the data
+dBBMMplot(
+  # x = paste0(saveloc, "Scaled/All_Rasters_Scaled_Weighted_UDScaled.asc"), # path to scaled data
+  x = "/users/libertyboyd/desktop/Bermuda/Output_dBBMMhomeRange/Scaled/All_Rasters_Scaled_Weighted_UDScaled.asc", # path to scaled data
+  crsloc = "/users/libertyboyd/desktop/Bermuda/Output_dBBMMhomeRange/", # Location of saved CRS Rds file from dBBMM.build.R. Should be same as path.
+  trim = TRUE, # remove NA & 0 values and crop to remaining date extents? Default TRUE
+  #myLocation =  c(-64.733248,32.342880,-64.720904,32.354570), # location for extents, format c(xmin, ymin, xmax, ymax).
+  # Default NULL, extents autocreated from data.
+  # c(-79.31, 25.69, -79.23, 25.78)
+  googlemap = TRUE, # If pulling basemap from Google maps, this sets expansion
+  # factors since Google Maps tiling zoom setup doesn't align to myLocation
+  # extents.
+  # gmapsAPI = Google_API, # enter your Google maps API here, quoted character string
+  expandfactor = 0, # extents expansion factor for basemap.
+  # 1.3 to 1.5 are the same zoom as 1. 1.6 is a big leap up in zoom (out).
+  # 1.9 & maybe 1.7 or 1.8 is another step out. Ignored if not using Google Maps.
+  mapzoom = 16, # google: 3 (continent) - 21 (building). stamen: 0-18
+  mapsource = "google", # Source for ggmap::get_map; uses Stamen as fallback if no Google Maps API present.
+  maptype = "satellite", # Type of map for ggmap::get_map.
+  contour1colour = "orange", # colour for contour 1, typically 95%.
+  contour2colour = "red", # colour for contour 2, typically 50%.
+  plottitle = "Green Turtle Home Range- Baileys Bay, Bermuda",
+  # Can use the term 'home range' when an animal can be detected wherever it goes
+  # i.e. using GPS, satellite or acoustic telemetry whereby it is known that acoustic
+  # receivers cover the entire home range of the study species.
+  # This term is problematic when applied to a passive acoustic telemetry setting
+  # where an array of non-overlapping receivers are used to assess local space use patterns
+  # i.e. the home range is bigger than the coverage by the acoustic array; put in Details
+  plotsubtitle = "", # paste0("Scaled contours. n = "), # DET %>% dplyr::distinct(ID) %>% nrow() # 13
+  legendtitle = "",
+  plotcaption = "", # paste0("dBBMM_HomeRange, ", lubridate::today()),
+  axisxlabel = "Longitude",
+  axisylabel = "Latitude",
+  legendposition = c(0.11, 0.75), #%dist (of middle? of legend box) from L to R, %dist from Bot to Top.
+  fontsize = 10,
+  fontfamily = "Arial",
+  filesavename = paste0(lubridate::today(), "_dBBMM-contours.png"),
+  savedir = "/users/libertyboyd/desktop/Bermuda/Output_dBBMMhomeRange/plots/", # file.path(work.dir, out.dir, "Scaled")
+  receiverlats = reclocs$Lat, # vector of latitudes for receivers to be plotted
+  receiverlons = reclocs$Lon, # vector of longitudes for receivers to be plotted
+  receivernames = NULL, # vector of names for receivers to be plotted --> takes WAY too long to run & doesn't look great, better NULL
+  receiverrange = 500, # single (will be recycled), or vector of detection ranges in metres for receivers to be plotted
+  recpointscol = "black", # Colour of receiver centrepoint outlines.
+  recpointsfill = "white", # Colour of receiver centrepoint fills.
+  recpointsalpha = 0.5, # Alpha value of receiver centrepoint fills, 0 (invisible) to 1 (fully visible).
+  recpointssize = 1, # Size of receiver points.
+  recpointsshape = 21, # Shape of receiver points, default 21, circle with outline and fill.
+  recbufcol = "grey75", # Colour of the receiver buffer circle outlines.
+  recbuffill = "grey", # Colour of the receiver buffer circle fills.
+  recbufalpha = 0,  # Alpha value of receiver buffer fills, 0 (invisible) to 1 (fully visible).
+  reclabcol = "black", # Receiver label text colour.
+  reclabfill = NA, # Receiver label fill colour, NA for no fill.
+  reclabnudgex = 0, # Receiver label offset nudge in X dimension.
+  reclabnudgey = -200, # Receiver label offset nudge in Y dimension.
+  reclabpad = 0, # Receiver label padding in lines.
+  reclabrad = 0.15, # Receiver label radius in lines.
+  reclabbord = 0, # Receiver label border in mm.
+  surface = TRUE
+)
+beep(4)
+
+####MAP TROUBLE SHOOTING####
+#myLocation =  c(-64.733248,32.342880,-64.720904,32.354570)
+#myLocation <- c(mean(c(myLocation[1], myLocation[3])), mean(c(myLocation[2], myLocation[4])))
+
+#myMap <- ggmap::get_map(
+#location = myLocation, # -62.57564  28.64368  33.78889  63.68533 # stamen etc want a bounding box
+#zoom = 16, # 3 (continent) - 21 (building). Stamen: 0-18
+# scale = "auto", # default "auto", 1, 2, 4 all the same
+# source = "google", # "google" # using stamen as fallback
+#maptype = "satellite", # "satellite"
+#messaging = TRUE,
+#crop = TRUE,
+#filename= paste0(saveloc,"map/")
+# google maps crs = 4326
+#)
+#ggmap::register_google(key = gmapsAPI, # an api key
+#account_type = "standard",
+#write = TRUE)
+#ggmap_show_api_key()
+#showing_key()
+#google_key()
+#has_google_key()
+
+#myMap <- ggmap::get_map(
+#location = c(-64.726720, 32.348871),
+#zoom = 16,
+#mesaging = TRUE,
+#source = "google",
+#maptype = "satellite",
+#crop = TRUE)
+#ggmap::ggmap(myMap)
+
+#Plot Individuals
+#Note: All IDs can be run with 13 mapzoon except for ID 13979, which must be run at 12 in order to capture the entire UD
+library(ape)
+filenames = dir(paste0(saveloc,"Scaled/"), pattern = "^[X]", full.names = FALSE, ignore.case = FALSE)
+for (f in 1:length(filenames)){
+  # Now plot the data
+  dBBMMplot(
+    x = paste0(saveloc,"scaled/",filenames[f]), # path to scaled data
+    #dataCRS = 2958, # one of (i) character: a string accepted by GDAL, (ii) integer, a valid EPSG value (numeric), or (iii) an object of class crs.
+    crsloc = paste0(saveloc), # Location of saved CRS Rds file from dBBMM.build.R. Should be same as path.
+    trim = TRUE, # remove NA & 0 values and crop to remaining date extents? Default TRUE
+    myLocation =  NULL, # location for extents, format c(xmin, ymin, xmax, ymax).
+    # Default NULL, extents autocreated from data.
+    # c(-79.31, 25.69, -79.23, 25.78)
+    googlemap = TRUE, # If pulling basemap from Google maps, this sets expansion
+    # factors since Google Maps tiling zoom setup doesn't align to myLocation
+    # extents.
+    gmapsAPI =  Google_API, # enter your Google maps API here, quoted character string
+    expandfactor = 0, # extents expansion factor for basemap.
+    # 1.3 to 1.5 are the same zoom as 1. 1.6 is a big leap up in zoom (out).
+    # 1.9 & maybe 1.7 or 1.8 is another step out. Ignored if not using Google Maps.
+    mapzoom = 16, # google: 3 (continent) - 21 (building). stamen: 0-18
+    mapsource = "google", # Source for ggmap::get_map; uses Stamen as fallback if no Google Maps API present.
+    maptype = "satellite", # Type of map for ggmap::get_map.
+    contour1colour = "orange", # colour for contour 1, typically 95%.
+    contour2colour = "red", # colour for contour 2, typically 50%.
+    plottitle = paste0("Green Turtle Home Range ",tools::file_path_sans_ext(filenames[f])),
+    # Can use the term 'home range' when an animal can be detected wherever it goes
+    # i.e. using GPS, satellite or acoustic telemetry whereby it is known that acoustic
+    # receivers cover the entire home range of the study species.
+    # This term is problematic when applied to a passive acoustic telemetry setting
+    # where an array of non-overlapping receivers are used to assess local space use patterns
+    # i.e. the home range is bigger than the coverage by the acoustic array; put in Details
+    plotsubtitle = "", # paste0("Scaled contours. n = "), # DET %>% dplyr::distinct(ID) %>% nrow() # 13
+    legendtitle = "",
+    plotcaption = "", # paste0("dBBMM_HomeRange, ", lubridate::today()),
+    axisxlabel = "Longitude",
+    axisylabel = "Latitude",
+    legendposition = c(0.12, 0.80), #%dist (of middle? of legend box) from L to R, %dist from Bot to Top.
+    fontsize = 10,
+    fontfamily = "Times New Roman",
+    filesavename = paste0(tools::file_path_sans_ext(filenames[f]),"_dBBMM-contours(z12)", "_", lubridate::today(),".png"),
+    savedir = paste0(saveloc,"plots/"), # file.path(work.dir, out.dir, "Scaled")
+    receiverlats = reclocs$Lat, # vector of latitudes for receivers to be plotted
+    receiverlons = reclocs$Lon, # vector of longitudes for receivers to be plotted
+    receivernames = NULL, # vector of names for receivers to be plotted --> Takes WAY too long to run & doesn't look great. Not Necessary
+    receiverrange = 500, # single (will be recycled), or vector of detection ranges in metres for receivers to be plotted
+    recpointscol = "black", # Colour of receiver centrepoint outlines.
+    recpointsfill = "white", # Colour of receiver centrepoint fills.
+    recpointsalpha = 0.5, # Alpha value of receiver centrepoint fills, 0 (invisible) to 1 (fully visible).
+    recpointssize = 1, # Size of receiver points.
+    recpointsshape = 21, # Shape of receiver points, default 21, circle with outline and fill.
+    recbufcol = "grey75", # Colour of the receiver buffer circle outlines.
+    recbuffill = "grey", # Colour of the receiver buffer circle fills.
+    recbufalpha = 0,  # Alpha value of receiver buffer fills, 0 (invisible) to 1 (fully visible).
+    reclabcol = "black", # Receiver label text colour.
+    reclabfill = NA, # Receiver label fill colour, NA for no fill.
+    reclabnudgex = 0, # Receiver label offset nudge in X dimension.
+    reclabnudgey = -200, # Receiver label offset nudge in Y dimension.
+    reclabpad = 0, # Receiver label padding in lines.
+    reclabrad = 0.15, # Receiver label radius in lines.
+    reclabbord = 0, # Receiver label border in mm.
+    surface = TRUE
+  )
+}
+
+
+################ Turtle Day Positions #########################################
+# #2. Set standards
+setwd("/Users/libertyboyd/Desktop/Bermuda")
+loc="/Users/libertyboyd/Desktop/Bermuda"
+saveloc="/Users/libertyboyd/Desktop/Bermuda/Output_dBBMMhomeRangeDay1/"
+scalepath = "/Users/libertyboyd/Desktop/Bermuda/Output_dBBMMhomeRangeDay1"
+dat.TZ="Atlantic/Bermuda"
+sep=","
+dec="."
+#
+# #3. Prepare Data, import cleaned detection data
+df<-read.table(paste(loc,"/TurtlePositionsDay.csv", sep = ""),sep=sep, dec=dec,header=T)
+df <- na.omit(df)
+df$Datetime<- as.POSIXct(df$Datetime,format="%m/%d/%y %H:%M", tz=dat.TZ)
+head(df)
+det_range<-3.7
+det_range<-as.vector(det_range)
+det_range<-as.numeric(det_range)
+
+reclocs= data.frame(col1=c(1:8), col2=c(32.34855, 32.349227, 32.349903, 32.350000, 32.347384, 32.348061, 32.348737, 32.349413), col3=c(-64.729059,-64.727673, -64.726286,-64.725000,-64.728262, -64.726876, -64.725489, -64.724103))
+colnames(reclocs) <- c("Receiver", "Lat", "Lon")
+
+#
+#
+# #4. Run dBBMMhomeRange
+movegroup(
+  data = df,
+  ID = "ID",
+  Datetime = "Datetime",
+  Lat = "Lat",
+  Lon = "Lon",
+  Group = NULL,
+  dat.TZ = "Atlantic/Bermuda",
+  proj = sp::CRS("+proj=longlat +datum=WGS84"),
+  projectedCRS = "+init=epsg:3769",
+  sensor = "VR2W",
+  moveLocError = 3.7,
+  timeDiffLong = 2,
+  timeDiffUnits = "hours",
+  center = TRUE,
+  buffpct = 3,
+  rasterExtent = NULL,
+  rasterCRS = sp::CRS("+proj=utm +zone=20 +datum=WGS84"),
+  rasterResolution = 7.4,#7.4
+  dbblocationerror  = 3.7,
+  dbbext = 4,
+  dbbwindowsize = 23,
+  writeRasterFormat = "ascii",
+  writeRasterExtension = ".asc",
+  writeRasterDatatype = "FLT4S",
+  absVolumeAreaSaveName = "VolumeArea_AbsoluteScale.csv",
+  savedir = saveloc,
+  alerts = TRUE
+)
+
+# #file.remove(paste0("/home/simon/Desktop/tmp/", list.files(path = "/home/simon/Desktop/tmp/")))
+# # Scale rasters from 0 to 1. WARNING: MAKE SURE ALL INDIVIDUAL-LEVEL UDs OF INTEREST HAVE BEEN CREATED FIRST BEFORE RUNNING SCALERASTER()
+scaleraster(
+  path = scalepath, #No terminal slash
+  pathsubsets = scalepath, # Location of files created by dBBMM.build. No terminal slash.
+  pattern = ".asc",
+  weighting = 1,
+  # weighting to divide individual and summed-scaled rasters by, for unbalanced arrays
+  format = "ascii",
+  datatype = "FLT4S",
+  bylayer = TRUE,
+  overwrite = TRUE,
+  scalefolder = "Scaled",
+  weightedsummedname = "All_Rasters_Weighted_Summed",
+  scaledweightedname = "All_Rasters_Scaled_Weighted",
+  crsloc = saveloc,
+  # location of saved CRS Rds file from dBBMM.build.R. Should be same as path.
+  returnObj = FALSE
+)
+# beep(4)
+#
+gmapsAPI = Google_API
+ggmap::register_google(key = "AIzaSyAxbzz1s4zdopMkVXjBPvU-mtPT11WAHgE", account_type = "standard", write = TRUE)
+
+
+# SD from here####
+# Now plot the data
+dBBMMplot(
+  # x = paste0(saveloc, "Scaled/All_Rasters_Scaled_Weighted_UDScaled.asc"), # path to scaled data
+  x = "/users/libertyboyd/desktop/Bermuda/Output_dBBMMhomeRangeDay1/Scaled/All_Rasters_Scaled_Weighted_UDScaled.asc", # path to scaled data
+  crsloc = "/users/libertyboyd/desktop/Bermuda/Output_dBBMMhomeRangeDay1/", # Location of saved CRS Rds file from dBBMM.build.R. Should be same as path.
+  trim = TRUE, # remove NA & 0 values and crop to remaining date extents? Default TRUE
+  #myLocation =  c(-64.733248,32.342880,-64.720904,32.354570), # location for extents, format c(xmin, ymin, xmax, ymax).
+  # Default NULL, extents autocreated from data.
+  # c(-79.31, 25.69, -79.23, 25.78)
+  googlemap = TRUE, # If pulling basemap from Google maps, this sets expansion
+  # factors since Google Maps tiling zoom setup doesn't align to myLocation
+  # extents.
+  # gmapsAPI = Google_API, # enter your Google maps API here, quoted character string
+  expandfactor = 0, # extents expansion factor for basemap.
+  # 1.3 to 1.5 are the same zoom as 1. 1.6 is a big leap up in zoom (out).
+  # 1.9 & maybe 1.7 or 1.8 is another step out. Ignored if not using Google Maps.
+  mapzoom = 16, # google: 3 (continent) - 21 (building). stamen: 0-18
+  mapsource = "google", # Source for ggmap::get_map; uses Stamen as fallback if no Google Maps API present.
+  maptype = "satellite", # Type of map for ggmap::get_map.
+  contour1colour = "orange", # colour for contour 1, typically 95%.
+  contour2colour = "red", # colour for contour 2, typically 50%.
+  plottitle = "Green Turtle Day Home Range- Baileys Bay, Bermuda",
+  # Can use the term 'home range' when an animal can be detected wherever it goes
+  # i.e. using GPS, satellite or acoustic telemetry whereby it is known that acoustic
+  # receivers cover the entire home range of the study species.
+  # This term is problematic when applied to a passive acoustic telemetry setting
+  # where an array of non-overlapping receivers are used to assess local space use patterns
+  # i.e. the home range is bigger than the coverage by the acoustic array; put in Details
+  plotsubtitle = "", # paste0("Scaled contours. n = "), # DET %>% dplyr::distinct(ID) %>% nrow() # 13
+  legendtitle = "",
+  plotcaption = "", # paste0("dBBMM_HomeRange, ", lubridate::today()),
+  axisxlabel = "Longitude",
+  axisylabel = "Latitude",
+  legendposition = c(0.11, 0.75), #%dist (of middle? of legend box) from L to R, %dist from Bot to Top.
+  fontsize = 10,
+  fontfamily = "Arial",
+  filesavename = paste0(lubridate::today(), "_dBBMM-contours.png"),
+  savedir = "/users/libertyboyd/desktop/Bermuda/Output_dBBMMhomeRangeDay1/plots/", # file.path(work.dir, out.dir, "Scaled")
+  receiverlats = reclocs$Lat, # vector of latitudes for receivers to be plotted
+  receiverlons = reclocs$Lon, # vector of longitudes for receivers to be plotted
+  receivernames = NULL, # vector of names for receivers to be plotted --> takes WAY too long to run & doesn't look great, better NULL
+  receiverrange = 0, # single (will be recycled), or vector of detection ranges in metres for receivers to be plotted
+  recpointscol = "black", # Colour of receiver centrepoint outlines.
+  recpointsfill = "white", # Colour of receiver centrepoint fills.
+  recpointsalpha = 0.5, # Alpha value of receiver centrepoint fills, 0 (invisible) to 1 (fully visible).
+  recpointssize = 1, # Size of receiver points.
+  recpointsshape = 21, # Shape of receiver points, default 21, circle with outline and fill.
+  recbufcol = "grey75", # Colour of the receiver buffer circle outlines.
+  recbuffill = "grey", # Colour of the receiver buffer circle fills.
+  recbufalpha = 0,  # Alpha value of receiver buffer fills, 0 (invisible) to 1 (fully visible).
+  reclabcol = "black", # Receiver label text colour.
+  reclabfill = NA, # Receiver label fill colour, NA for no fill.
+  reclabnudgex = 0, # Receiver label offset nudge in X dimension.
+  reclabnudgey = -200, # Receiver label offset nudge in Y dimension.
+  reclabpad = 0, # Receiver label padding in lines.
+  reclabrad = 0.15, # Receiver label radius in lines.
+  reclabbord = 0, # Receiver label border in mm.
+  surface = TRUE
+)
+beep(4)
+
+####MAP TROUBLE SHOOTING####
+#myLocation =  c(-64.733248,32.342880,-64.720904,32.354570)
+#myLocation <- c(mean(c(myLocation[1], myLocation[3])), mean(c(myLocation[2], myLocation[4])))
+
+#myMap <- ggmap::get_map(
+#location = myLocation, # -62.57564  28.64368  33.78889  63.68533 # stamen etc want a bounding box
+#zoom = 16, # 3 (continent) - 21 (building). Stamen: 0-18
+# scale = "auto", # default "auto", 1, 2, 4 all the same
+# source = "google", # "google" # using stamen as fallback
+#maptype = "satellite", # "satellite"
+#messaging = TRUE,
+#crop = TRUE,
+#filename= paste0(saveloc,"map/")
+# google maps crs = 4326
+#)
+#ggmap::register_google(key = gmapsAPI, # an api key
+#account_type = "standard",
+#write = TRUE)
+#ggmap_show_api_key()
+#showing_key()
+#google_key()
+#has_google_key()
+
+#myMap <- ggmap::get_map(
+#location = c(-64.726720, 32.348871),
+#zoom = 16,
+#mesaging = TRUE,
+#source = "google",
+#maptype = "satellite",
+#crop = TRUE)
+#ggmap::ggmap(myMap)
+
+#Plot Individuals
+#Note: All IDs can be run with 13 mapzoon except for ID 13979, which must be run at 12 in order to capture the entire UD
+library(ape)
+filenames = dir(paste0(saveloc,"Scaled/"), pattern = "^[X]", full.names = FALSE, ignore.case = FALSE)
+for (f in 1:length(filenames)){
+  # Now plot the data
+  dBBMMplot(
+    x = paste0(saveloc,"scaled/",filenames[f]), # path to scaled data
+    #dataCRS = 2958, # one of (i) character: a string accepted by GDAL, (ii) integer, a valid EPSG value (numeric), or (iii) an object of class crs.
+    crsloc = paste0(saveloc), # Location of saved CRS Rds file from dBBMM.build.R. Should be same as path.
+    trim = TRUE, # remove NA & 0 values and crop to remaining date extents? Default TRUE
+    myLocation =  NULL, # location for extents, format c(xmin, ymin, xmax, ymax).
+    # Default NULL, extents autocreated from data.
+    # c(-79.31, 25.69, -79.23, 25.78)
+    googlemap = TRUE, # If pulling basemap from Google maps, this sets expansion
+    # factors since Google Maps tiling zoom setup doesn't align to myLocation
+    # extents.
+    gmapsAPI =  Google_API, # enter your Google maps API here, quoted character string
+    expandfactor = 0, # extents expansion factor for basemap.
+    # 1.3 to 1.5 are the same zoom as 1. 1.6 is a big leap up in zoom (out).
+    # 1.9 & maybe 1.7 or 1.8 is another step out. Ignored if not using Google Maps.
+    mapzoom = 16, # google: 3 (continent) - 21 (building). stamen: 0-18
+    mapsource = "google", # Source for ggmap::get_map; uses Stamen as fallback if no Google Maps API present.
+    maptype = "satellite", # Type of map for ggmap::get_map.
+    contour1colour = "orange", # colour for contour 1, typically 95%.
+    contour2colour = "red", # colour for contour 2, typically 50%.
+    plottitle = paste0("Green Turtle Home Range Day",tools::file_path_sans_ext(filenames[f])),
+    # Can use the term 'home range' when an animal can be detected wherever it goes
+    # i.e. using GPS, satellite or acoustic telemetry whereby it is known that acoustic
+    # receivers cover the entire home range of the study species.
+    # This term is problematic when applied to a passive acoustic telemetry setting
+    # where an array of non-overlapping receivers are used to assess local space use patterns
+    # i.e. the home range is bigger than the coverage by the acoustic array; put in Details
+    plotsubtitle = "", # paste0("Scaled contours. n = "), # DET %>% dplyr::distinct(ID) %>% nrow() # 13
+    legendtitle = "",
+    plotcaption = "", # paste0("dBBMM_HomeRange, ", lubridate::today()),
+    axisxlabel = "Longitude",
+    axisylabel = "Latitude",
+    legendposition = c(0.12, 0.80), #%dist (of middle? of legend box) from L to R, %dist from Bot to Top.
+    fontsize = 10,
+    fontfamily = "Times New Roman",
+    filesavename = paste0(tools::file_path_sans_ext(filenames[f]),"_dBBMM-contours(z12)", "_", lubridate::today(),".png"),
+    savedir = paste0(saveloc,"plots/"), # file.path(work.dir, out.dir, "Scaled")
+    receiverlats = reclocs$Lat, # vector of latitudes for receivers to be plotted
+    receiverlons = reclocs$Lon, # vector of longitudes for receivers to be plotted
+    receivernames = NULL, # vector of names for receivers to be plotted --> Takes WAY too long to run & doesn't look great. Not Necessary
+    receiverrange = 0, # single (will be recycled), or vector of detection ranges in metres for receivers to be plotted
+    recpointscol = "black", # Colour of receiver centrepoint outlines.
+    recpointsfill = "white", # Colour of receiver centrepoint fills.
+    recpointsalpha = 0.5, # Alpha value of receiver centrepoint fills, 0 (invisible) to 1 (fully visible).
+    recpointssize = 1, # Size of receiver points.
+    recpointsshape = 21, # Shape of receiver points, default 21, circle with outline and fill.
+    recbufcol = "grey75", # Colour of the receiver buffer circle outlines.
+    recbuffill = "grey", # Colour of the receiver buffer circle fills.
+    recbufalpha = 0,  # Alpha value of receiver buffer fills, 0 (invisible) to 1 (fully visible).
+    reclabcol = "black", # Receiver label text colour.
+    reclabfill = NA, # Receiver label fill colour, NA for no fill.
+    reclabnudgex = 0, # Receiver label offset nudge in X dimension.
+    reclabnudgey = -200, # Receiver label offset nudge in Y dimension.
+    reclabpad = 0, # Receiver label padding in lines.
+    reclabrad = 0.15, # Receiver label radius in lines.
+    reclabbord = 0, # Receiver label border in mm.
+    surface = TRUE
+  )
+}
+
+
+################ Turtle Twilight Positions #########################################
+# #2. Set standards
+setwd("/Users/libertyboyd/Desktop/Bermuda")
+loc="/Users/libertyboyd/Desktop/Bermuda"
+saveloc="/Users/libertyboyd/Desktop/Bermuda/Output_dBBMMhomeRangeTwilight/"
+scalepath = "/Users/libertyboyd/Desktop/Bermuda/Output_dBBMMhomeRangeTwilight"
+dat.TZ="Atlantic/Bermuda"
+sep=","
+dec="."
+#
+# #3. Prepare Data, import cleaned detection data
+df<-read.table(paste(loc,"/TurtlePositionsTwilight.csv", sep = ""),sep=sep, dec=dec,header=T)
+df <- na.omit(df)
+df$Datetime<- as.POSIXct(df$Datetime,format="%m/%d/%y %H:%M", tz=dat.TZ)
+head(df)
+det_range<-3.7
+det_range<-as.vector(det_range)
+det_range<-as.numeric(det_range)
+
+reclocs= data.frame(col1=c(1:8), col2=c(32.34855, 32.349227, 32.349903, 32.350000, 32.347384, 32.348061, 32.348737, 32.349413), col3=c(-64.729059,-64.727673, -64.726286,-64.725000,-64.728262, -64.726876, -64.725489, -64.724103))
+colnames(reclocs) <- c("Receiver", "Lat", "Lon")
+
+#
+#
+# #4. Run dBBMMhomeRange
+movegroup(
+  data = df,
+  ID = "ID",
+  Datetime = "Datetime",
+  Lat = "Lat",
+  Lon = "Lon",
+  Group = NULL,
+  dat.TZ = "Atlantic/Bermuda",
+  proj = sp::CRS("+proj=longlat +datum=WGS84"),
+  projectedCRS = "+init=epsg:3769",
+  sensor = "VR2W",
+  moveLocError = 3.7,
+  timeDiffLong = 2,
+  timeDiffUnits = "hours",
+  center = TRUE,
+  buffpct = 3,
+  rasterExtent = NULL,
+  rasterCRS = sp::CRS("+proj=utm +zone=20 +datum=WGS84"),
+  rasterResolution = 7.4,#7.4
+  dbblocationerror  = 3.7,
+  dbbext = 4,
+  dbbwindowsize = 23,
+  writeRasterFormat = "ascii",
+  writeRasterExtension = ".asc",
+  writeRasterDatatype = "FLT4S",
+  absVolumeAreaSaveName = "VolumeArea_AbsoluteScale.csv",
+  savedir = saveloc,
+  alerts = TRUE
+)
+
+# #file.remove(paste0("/home/simon/Desktop/tmp/", list.files(path = "/home/simon/Desktop/tmp/")))
+# # Scale rasters from 0 to 1. WARNING: MAKE SURE ALL INDIVIDUAL-LEVEL UDs OF INTEREST HAVE BEEN CREATED FIRST BEFORE RUNNING SCALERASTER()
+scaleraster(
+  path = scalepath, #No terminal slash
+  pathsubsets = scalepath, # Location of files created by dBBMM.build. No terminal slash.
+  pattern = ".asc",
+  weighting = 1,
+  # weighting to divide individual and summed-scaled rasters by, for unbalanced arrays
+  format = "ascii",
+  datatype = "FLT4S",
+  bylayer = TRUE,
+  overwrite = TRUE,
+  scalefolder = "Scaled",
+  weightedsummedname = "All_Rasters_Weighted_Summed",
+  scaledweightedname = "All_Rasters_Scaled_Weighted",
+  crsloc = saveloc,
+  # location of saved CRS Rds file from dBBMM.build.R. Should be same as path.
+  returnObj = FALSE
+)
+# beep(4)
+#
+gmapsAPI = Google_API
+ggmap::register_google(key = "AIzaSyAxbzz1s4zdopMkVXjBPvU-mtPT11WAHgE", account_type = "standard", write = TRUE)
+
+
+# SD from here####
+# Now plot the data
+dBBMMplot(
+  # x = paste0(saveloc, "Scaled/All_Rasters_Scaled_Weighted_UDScaled.asc"), # path to scaled data
+  x = "/users/libertyboyd/desktop/Bermuda/Output_dBBMMhomeRangeTwilight/Scaled/All_Rasters_Scaled_Weighted_UDScaled.asc", # path to scaled data
+  crsloc = "/users/libertyboyd/desktop/Bermuda/Output_dBBMMhomeRangeTwilight/", # Location of saved CRS Rds file from dBBMM.build.R. Should be same as path.
+  trim = TRUE, # remove NA & 0 values and crop to remaining date extents? Default TRUE
+  #myLocation =  c(-64.733248,32.342880,-64.720904,32.354570), # location for extents, format c(xmin, ymin, xmax, ymax).
+  # Default NULL, extents autocreated from data.
+  # c(-79.31, 25.69, -79.23, 25.78)
+  googlemap = TRUE, # If pulling basemap from Google maps, this sets expansion
+  # factors since Google Maps tiling zoom setup doesn't align to myLocation
+  # extents.
+  # gmapsAPI = Google_API, # enter your Google maps API here, quoted character string
+  expandfactor = 0, # extents expansion factor for basemap.
+  # 1.3 to 1.5 are the same zoom as 1. 1.6 is a big leap up in zoom (out).
+  # 1.9 & maybe 1.7 or 1.8 is another step out. Ignored if not using Google Maps.
+  mapzoom = 16, # google: 3 (continent) - 21 (building). stamen: 0-18
+  mapsource = "google", # Source for ggmap::get_map; uses Stamen as fallback if no Google Maps API present.
+  maptype = "satellite", # Type of map for ggmap::get_map.
+  contour1colour = "orange", # colour for contour 1, typically 95%.
+  contour2colour = "red", # colour for contour 2, typically 50%.
+  plottitle = "Green Turtle Twilight Home Range- Baileys Bay, Bermuda",
+  # Can use the term 'home range' when an animal can be detected wherever it goes
+  # i.e. using GPS, satellite or acoustic telemetry whereby it is known that acoustic
+  # receivers cover the entire home range of the study species.
+  # This term is problematic when applied to a passive acoustic telemetry setting
+  # where an array of non-overlapping receivers are used to assess local space use patterns
+  # i.e. the home range is bigger than the coverage by the acoustic array; put in Details
+  plotsubtitle = "", # paste0("Scaled contours. n = "), # DET %>% dplyr::distinct(ID) %>% nrow() # 13
+  legendtitle = "",
+  plotcaption = "", # paste0("dBBMM_HomeRange, ", lubridate::today()),
+  axisxlabel = "Longitude",
+  axisylabel = "Latitude",
+  legendposition = c(0.11, 0.75), #%dist (of middle? of legend box) from L to R, %dist from Bot to Top.
+  fontsize = 10,
+  fontfamily = "Arial",
+  filesavename = paste0(lubridate::today(), "_dBBMM-contours.png"),
+  savedir = "/users/libertyboyd/desktop/Bermuda/Output_dBBMMhomeRangeTwilight/plots/", # file.path(work.dir, out.dir, "Scaled")
+  receiverlats = reclocs$Lat, # vector of latitudes for receivers to be plotted
+  receiverlons = reclocs$Lon, # vector of longitudes for receivers to be plotted
+  receivernames = NULL, # vector of names for receivers to be plotted --> takes WAY too long to run & doesn't look great, better NULL
+  receiverrange = 0, # single (will be recycled), or vector of detection ranges in metres for receivers to be plotted
+  recpointscol = "black", # Colour of receiver centrepoint outlines.
+  recpointsfill = "white", # Colour of receiver centrepoint fills.
+  recpointsalpha = 0.5, # Alpha value of receiver centrepoint fills, 0 (invisible) to 1 (fully visible).
+  recpointssize = 1, # Size of receiver points.
+  recpointsshape = 21, # Shape of receiver points, default 21, circle with outline and fill.
+  recbufcol = "grey75", # Colour of the receiver buffer circle outlines.
+  recbuffill = "grey", # Colour of the receiver buffer circle fills.
+  recbufalpha = 0,  # Alpha value of receiver buffer fills, 0 (invisible) to 1 (fully visible).
+  reclabcol = "black", # Receiver label text colour.
+  reclabfill = NA, # Receiver label fill colour, NA for no fill.
+  reclabnudgex = 0, # Receiver label offset nudge in X dimension.
+  reclabnudgey = -200, # Receiver label offset nudge in Y dimension.
+  reclabpad = 0, # Receiver label padding in lines.
+  reclabrad = 0.15, # Receiver label radius in lines.
+  reclabbord = 0, # Receiver label border in mm.
+  surface = TRUE
+)
+beep(4)
+
+####MAP TROUBLE SHOOTING####
+#myLocation =  c(-64.733248,32.342880,-64.720904,32.354570)
+#myLocation <- c(mean(c(myLocation[1], myLocation[3])), mean(c(myLocation[2], myLocation[4])))
+
+#myMap <- ggmap::get_map(
+#location = myLocation, # -62.57564  28.64368  33.78889  63.68533 # stamen etc want a bounding box
+#zoom = 16, # 3 (continent) - 21 (building). Stamen: 0-18
+# scale = "auto", # default "auto", 1, 2, 4 all the same
+# source = "google", # "google" # using stamen as fallback
+#maptype = "satellite", # "satellite"
+#messaging = TRUE,
+#crop = TRUE,
+#filename= paste0(saveloc,"map/")
+# google maps crs = 4326
+#)
+#ggmap::register_google(key = gmapsAPI, # an api key
+#account_type = "standard",
+#write = TRUE)
+#ggmap_show_api_key()
+#showing_key()
+#google_key()
+#has_google_key()
+
+#myMap <- ggmap::get_map(
+#location = c(-64.726720, 32.348871),
+#zoom = 16,
+#mesaging = TRUE,
+#source = "google",
+#maptype = "satellite",
+#crop = TRUE)
+#ggmap::ggmap(myMap)
+
+#Plot Individuals
+#Note: All IDs can be run with 13 mapzoon except for ID 13979, which must be run at 12 in order to capture the entire UD
+library(ape)
+filenames = dir(paste0(saveloc,"Scaled/"), pattern = "^[X]", full.names = FALSE, ignore.case = FALSE)
+for (f in 1:length(filenames)){
+  # Now plot the data
+  dBBMMplot(
+    x = paste0(saveloc,"scaled/",filenames[f]), # path to scaled data
+    #dataCRS = 2958, # one of (i) character: a string accepted by GDAL, (ii) integer, a valid EPSG value (numeric), or (iii) an object of class crs.
+    crsloc = paste0(saveloc), # Location of saved CRS Rds file from dBBMM.build.R. Should be same as path.
+    trim = TRUE, # remove NA & 0 values and crop to remaining date extents? Default TRUE
+    myLocation =  NULL, # location for extents, format c(xmin, ymin, xmax, ymax).
+    # Default NULL, extents autocreated from data.
+    # c(-79.31, 25.69, -79.23, 25.78)
+    googlemap = TRUE, # If pulling basemap from Google maps, this sets expansion
+    # factors since Google Maps tiling zoom setup doesn't align to myLocation
+    # extents.
+    gmapsAPI =  Google_API, # enter your Google maps API here, quoted character string
+    expandfactor = 0, # extents expansion factor for basemap.
+    # 1.3 to 1.5 are the same zoom as 1. 1.6 is a big leap up in zoom (out).
+    # 1.9 & maybe 1.7 or 1.8 is another step out. Ignored if not using Google Maps.
+    mapzoom = 16, # google: 3 (continent) - 21 (building). stamen: 0-18
+    mapsource = "google", # Source for ggmap::get_map; uses Stamen as fallback if no Google Maps API present.
+    maptype = "satellite", # Type of map for ggmap::get_map.
+    contour1colour = "orange", # colour for contour 1, typically 95%.
+    contour2colour = "red", # colour for contour 2, typically 50%.
+    plottitle = paste0("Green Turtle Home Range Twilight",tools::file_path_sans_ext(filenames[f])),
+    # Can use the term 'home range' when an animal can be detected wherever it goes
+    # i.e. using GPS, satellite or acoustic telemetry whereby it is known that acoustic
+    # receivers cover the entire home range of the study species.
+    # This term is problematic when applied to a passive acoustic telemetry setting
+    # where an array of non-overlapping receivers are used to assess local space use patterns
+    # i.e. the home range is bigger than the coverage by the acoustic array; put in Details
+    plotsubtitle = "", # paste0("Scaled contours. n = "), # DET %>% dplyr::distinct(ID) %>% nrow() # 13
+    legendtitle = "",
+    plotcaption = "", # paste0("dBBMM_HomeRange, ", lubridate::today()),
+    axisxlabel = "Longitude",
+    axisylabel = "Latitude",
+    legendposition = c(0.12, 0.80), #%dist (of middle? of legend box) from L to R, %dist from Bot to Top.
+    fontsize = 10,
+    fontfamily = "Times New Roman",
+    filesavename = paste0(tools::file_path_sans_ext(filenames[f]),"_dBBMM-contours(z12)", "_", lubridate::today(),".png"),
+    savedir = paste0(saveloc,"plots/"), # file.path(work.dir, out.dir, "Scaled")
+    receiverlats = reclocs$Lat, # vector of latitudes for receivers to be plotted
+    receiverlons = reclocs$Lon, # vector of longitudes for receivers to be plotted
+    receivernames = NULL, # vector of names for receivers to be plotted --> Takes WAY too long to run & doesn't look great. Not Necessary
+    receiverrange = 0, # single (will be recycled), or vector of detection ranges in metres for receivers to be plotted
+    recpointscol = "black", # Colour of receiver centrepoint outlines.
+    recpointsfill = "white", # Colour of receiver centrepoint fills.
+    recpointsalpha = 0.5, # Alpha value of receiver centrepoint fills, 0 (invisible) to 1 (fully visible).
+    recpointssize = 1, # Size of receiver points.
+    recpointsshape = 21, # Shape of receiver points, default 21, circle with outline and fill.
+    recbufcol = "grey75", # Colour of the receiver buffer circle outlines.
+    recbuffill = "grey", # Colour of the receiver buffer circle fills.
+    recbufalpha = 0,  # Alpha value of receiver buffer fills, 0 (invisible) to 1 (fully visible).
+    reclabcol = "black", # Receiver label text colour.
+    reclabfill = NA, # Receiver label fill colour, NA for no fill.
+    reclabnudgex = 0, # Receiver label offset nudge in X dimension.
+    reclabnudgey = -200, # Receiver label offset nudge in Y dimension.
+    reclabpad = 0, # Receiver label padding in lines.
+    reclabrad = 0.15, # Receiver label radius in lines.
+    reclabbord = 0, # Receiver label border in mm.
+    surface = TRUE
+  )
+}
+
+
+
+################ Turtle Night Positions #########################################
+# #2. Set standards
+setwd("/Users/libertyboyd/Desktop/Bermuda")
+loc="/Users/libertyboyd/Desktop/Bermuda"
+saveloc="/Users/libertyboyd/Desktop/Bermuda/Output_dBBMMhomeRangeNight2/"
+scalepath = "/Users/libertyboyd/Desktop/Bermuda/Output_dBBMMhomeRangeNight2"
+dat.TZ="Atlantic/Bermuda"
+sep=","
+dec="."
+#
+# #3. Prepare Data, import cleaned detection data
+df<-read.table(paste(loc,"/TurtlePositionsNight.csv", sep = ""),sep=sep, dec=dec,header=T)
+df <- na.omit(df)
+df$Datetime<- as.POSIXct(df$Datetime,format="%m/%d/%y %H:%M", tz=dat.TZ)
+head(df)
+det_range<-3.7
+det_range<-as.vector(det_range)
+det_range<-as.numeric(det_range)
+
+reclocs= data.frame(col1=c(1:8), col2=c(32.34855, 32.349227, 32.349903, 32.350000, 32.347384, 32.348061, 32.348737, 32.349413), col3=c(-64.729059,-64.727673, -64.726286,-64.725000,-64.728262, -64.726876, -64.725489, -64.724103))
+colnames(reclocs) <- c("Receiver", "Lat", "Lon")
+
+#
+#
+# #4. Run dBBMMhomeRange
+movegroup(
+  data = df,
+  ID = "ID",
+  Datetime = "Datetime",
+  Lat = "Lat",
+  Lon = "Lon",
+  Group = NULL,
+  dat.TZ = "Atlantic/Bermuda",
+  proj = sp::CRS("+proj=longlat +datum=WGS84"),
+  projectedCRS = "+init=epsg:3769",
+  sensor = "VR2W",
+  moveLocError = 3.7,
+  timeDiffLong = 2,
+  timeDiffUnits = "hours",
+  center = TRUE,
+  buffpct = 3,
+  rasterExtent = NULL,
+  rasterCRS = sp::CRS("+proj=utm +zone=20 +datum=WGS84"),
+  rasterResolution = 7.4,#7.4
+  dbblocationerror  = 3.7,
+  dbbext = 4,
+  dbbwindowsize = 23,
+  writeRasterFormat = "ascii",
+  writeRasterExtension = ".asc",
+  writeRasterDatatype = "FLT4S",
+  absVolumeAreaSaveName = "VolumeArea_AbsoluteScale.csv",
+  savedir = saveloc,
+  alerts = TRUE
+)
+
+# #file.remove(paste0("/home/simon/Desktop/tmp/", list.files(path = "/home/simon/Desktop/tmp/")))
+# # Scale rasters from 0 to 1. WARNING: MAKE SURE ALL INDIVIDUAL-LEVEL UDs OF INTEREST HAVE BEEN CREATED FIRST BEFORE RUNNING SCALERASTER()
+scaleraster(
+  path = scalepath, #No terminal slash
+  pathsubsets = scalepath, # Location of files created by dBBMM.build. No terminal slash.
+  pattern = ".asc",
+  weighting = 1,
+  # weighting to divide individual and summed-scaled rasters by, for unbalanced arrays
+  format = "ascii",
+  datatype = "FLT4S",
+  bylayer = TRUE,
+  overwrite = TRUE,
+  scalefolder = "Scaled",
+  weightedsummedname = "All_Rasters_Weighted_Summed",
+  scaledweightedname = "All_Rasters_Scaled_Weighted",
+  crsloc = saveloc,
+  # location of saved CRS Rds file from dBBMM.build.R. Should be same as path.
+  returnObj = FALSE
+)
+# beep(4)
+#
+gmapsAPI = Google_API
+ggmap::register_google(key = "AIzaSyAxbzz1s4zdopMkVXjBPvU-mtPT11WAHgE", account_type = "standard", write = TRUE)
+
+
+# SD from here####
+# Now plot the data
+dBBMMplot(
+  # x = paste0(saveloc, "Scaled/All_Rasters_Scaled_Weighted_UDScaled.asc"), # path to scaled data
+  x = "/users/libertyboyd/desktop/Bermuda/Output_dBBMMhomeRangeNight2/Scaled/All_Rasters_Scaled_Weighted_UDScaled.asc", # path to scaled data
+  crsloc = "/users/libertyboyd/desktop/Bermuda/Output_dBBMMhomeRangeNight2/", # Location of saved CRS Rds file from dBBMM.build.R. Should be same as path.
+  trim = TRUE, # remove NA & 0 values and crop to remaining date extents? Default TRUE
+  #myLocation =  c(-64.733248,32.342880,-64.720904,32.354570), # location for extents, format c(xmin, ymin, xmax, ymax).
+  # Default NULL, extents autocreated from data.
+  # c(-79.31, 25.69, -79.23, 25.78)
+  googlemap = TRUE, # If pulling basemap from Google maps, this sets expansion
+  # factors since Google Maps tiling zoom setup doesn't align to myLocation
+  # extents.
+  # gmapsAPI = Google_API, # enter your Google maps API here, quoted character string
+  expandfactor = 0, # extents expansion factor for basemap.
+  # 1.3 to 1.5 are the same zoom as 1. 1.6 is a big leap up in zoom (out).
+  # 1.9 & maybe 1.7 or 1.8 is another step out. Ignored if not using Google Maps.
+  mapzoom = 16, # google: 3 (continent) - 21 (building). stamen: 0-18
+  mapsource = "google", # Source for ggmap::get_map; uses Stamen as fallback if no Google Maps API present.
+  maptype = "satellite", # Type of map for ggmap::get_map.
+  contour1colour = "orange", # colour for contour 1, typically 95%.
+  contour2colour = "red", # colour for contour 2, typically 50%.
+  plottitle = "Green Turtle Night Home Range- Baileys Bay, Bermuda",
+  # Can use the term 'home range' when an animal can be detected wherever it goes
+  # i.e. using GPS, satellite or acoustic telemetry whereby it is known that acoustic
+  # receivers cover the entire home range of the study species.
+  # This term is problematic when applied to a passive acoustic telemetry setting
+  # where an array of non-overlapping receivers are used to assess local space use patterns
+  # i.e. the home range is bigger than the coverage by the acoustic array; put in Details
+  plotsubtitle = "", # paste0("Scaled contours. n = "), # DET %>% dplyr::distinct(ID) %>% nrow() # 13
+  legendtitle = "",
+  plotcaption = "", # paste0("dBBMM_HomeRange, ", lubridate::today()),
+  axisxlabel = "Longitude",
+  axisylabel = "Latitude",
+  legendposition = c(0.11, 0.75), #%dist (of middle? of legend box) from L to R, %dist from Bot to Top.
+  fontsize = 10,
+  fontfamily = "Arial",
+  filesavename = paste0(lubridate::today(), "_dBBMM-contours.png"),
+  savedir = "/users/libertyboyd/desktop/Bermuda/Output_dBBMMhomeRangeNight2/plots/", # file.path(work.dir, out.dir, "Scaled")
+  receiverlats = reclocs$Lat, # vector of latitudes for receivers to be plotted
+  receiverlons = reclocs$Lon, # vector of longitudes for receivers to be plotted
+  receivernames = NULL, # vector of names for receivers to be plotted --> takes WAY too long to run & doesn't look great, better NULL
+  receiverrange = 0, # single (will be recycled), or vector of detection ranges in metres for receivers to be plotted
+  recpointscol = "black", # Colour of receiver centrepoint outlines.
+  recpointsfill = "white", # Colour of receiver centrepoint fills.
+  recpointsalpha = 0.5, # Alpha value of receiver centrepoint fills, 0 (invisible) to 1 (fully visible).
+  recpointssize = 1, # Size of receiver points.
+  recpointsshape = 21, # Shape of receiver points, default 21, circle with outline and fill.
+  recbufcol = "grey75", # Colour of the receiver buffer circle outlines.
+  recbuffill = "grey", # Colour of the receiver buffer circle fills.
+  recbufalpha = 0,  # Alpha value of receiver buffer fills, 0 (invisible) to 1 (fully visible).
+  reclabcol = "black", # Receiver label text colour.
+  reclabfill = NA, # Receiver label fill colour, NA for no fill.
+  reclabnudgex = 0, # Receiver label offset nudge in X dimension.
+  reclabnudgey = -200, # Receiver label offset nudge in Y dimension.
+  reclabpad = 0, # Receiver label padding in lines.
+  reclabrad = 0.15, # Receiver label radius in lines.
+  reclabbord = 0, # Receiver label border in mm.
+  surface = TRUE
+)
+beep(4)
+
+####MAP TROUBLE SHOOTING####
+#myLocation =  c(-64.733248,32.342880,-64.720904,32.354570)
+#myLocation <- c(mean(c(myLocation[1], myLocation[3])), mean(c(myLocation[2], myLocation[4])))
+
+#myMap <- ggmap::get_map(
+#location = myLocation, # -62.57564  28.64368  33.78889  63.68533 # stamen etc want a bounding box
+#zoom = 16, # 3 (continent) - 21 (building). Stamen: 0-18
+# scale = "auto", # default "auto", 1, 2, 4 all the same
+# source = "google", # "google" # using stamen as fallback
+#maptype = "satellite", # "satellite"
+#messaging = TRUE,
+#crop = TRUE,
+#filename= paste0(saveloc,"map/")
+# google maps crs = 4326
+#)
+#ggmap::register_google(key = gmapsAPI, # an api key
+#account_type = "standard",
+#write = TRUE)
+#ggmap_show_api_key()
+#showing_key()
+#google_key()
+#has_google_key()
+
+#myMap <- ggmap::get_map(
+#location = c(-64.726720, 32.348871),
+#zoom = 16,
+#mesaging = TRUE,
+#source = "google",
+#maptype = "satellite",
+#crop = TRUE)
+#ggmap::ggmap(myMap)
+
+#Plot Individuals
+#Note: All IDs can be run with 13 mapzoon except for ID 13979, which must be run at 12 in order to capture the entire UD
+library(ape)
+filenames = dir(paste0(saveloc,"Scaled/"), pattern = "^[X]", full.names = FALSE, ignore.case = FALSE)
+for (f in 1:length(filenames)){
+  # Now plot the data
+  dBBMMplot(
+    x = paste0(saveloc,"scaled/",filenames[f]), # path to scaled data
+    #dataCRS = 2958, # one of (i) character: a string accepted by GDAL, (ii) integer, a valid EPSG value (numeric), or (iii) an object of class crs.
+    crsloc = paste0(saveloc), # Location of saved CRS Rds file from dBBMM.build.R. Should be same as path.
+    trim = TRUE, # remove NA & 0 values and crop to remaining date extents? Default TRUE
+    myLocation =  NULL, # location for extents, format c(xmin, ymin, xmax, ymax).
+    # Default NULL, extents autocreated from data.
+    # c(-79.31, 25.69, -79.23, 25.78)
+    googlemap = TRUE, # If pulling basemap from Google maps, this sets expansion
+    # factors since Google Maps tiling zoom setup doesn't align to myLocation
+    # extents.
+    gmapsAPI =  Google_API, # enter your Google maps API here, quoted character string
+    expandfactor = 0, # extents expansion factor for basemap.
+    # 1.3 to 1.5 are the same zoom as 1. 1.6 is a big leap up in zoom (out).
+    # 1.9 & maybe 1.7 or 1.8 is another step out. Ignored if not using Google Maps.
+    mapzoom = 16, # google: 3 (continent) - 21 (building). stamen: 0-18
+    mapsource = "google", # Source for ggmap::get_map; uses Stamen as fallback if no Google Maps API present.
+    maptype = "satellite", # Type of map for ggmap::get_map.
+    contour1colour = "orange", # colour for contour 1, typically 95%.
+    contour2colour = "red", # colour for contour 2, typically 50%.
+    plottitle = paste0("Green Turtle Home Range Night",tools::file_path_sans_ext(filenames[f])),
+    # Can use the term 'home range' when an animal can be detected wherever it goes
+    # i.e. using GPS, satellite or acoustic telemetry whereby it is known that acoustic
+    # receivers cover the entire home range of the study species.
+    # This term is problematic when applied to a passive acoustic telemetry setting
+    # where an array of non-overlapping receivers are used to assess local space use patterns
+    # i.e. the home range is bigger than the coverage by the acoustic array; put in Details
+    plotsubtitle = "", # paste0("Scaled contours. n = "), # DET %>% dplyr::distinct(ID) %>% nrow() # 13
+    legendtitle = "",
+    plotcaption = "", # paste0("dBBMM_HomeRange, ", lubridate::today()),
+    axisxlabel = "Longitude",
+    axisylabel = "Latitude",
+    legendposition = c(0.12, 0.80), #%dist (of middle? of legend box) from L to R, %dist from Bot to Top.
+    fontsize = 10,
+    fontfamily = "Times New Roman",
+    filesavename = paste0(tools::file_path_sans_ext(filenames[f]),"_dBBMM-contours(z12)", "_", lubridate::today(),".png"),
+    savedir = paste0(saveloc,"plots/"), # file.path(work.dir, out.dir, "Scaled")
+    receiverlats = reclocs$Lat, # vector of latitudes for receivers to be plotted
+    receiverlons = reclocs$Lon, # vector of longitudes for receivers to be plotted
+    receivernames = NULL, # vector of names for receivers to be plotted --> Takes WAY too long to run & doesn't look great. Not Necessary
+    receiverrange = 0, # single (will be recycled), or vector of detection ranges in metres for receivers to be plotted
+    recpointscol = "black", # Colour of receiver centrepoint outlines.
+    recpointsfill = "white", # Colour of receiver centrepoint fills.
+    recpointsalpha = 0.5, # Alpha value of receiver centrepoint fills, 0 (invisible) to 1 (fully visible).
+    recpointssize = 1, # Size of receiver points.
+    recpointsshape = 21, # Shape of receiver points, default 21, circle with outline and fill.
+    recbufcol = "grey75", # Colour of the receiver buffer circle outlines.
+    recbuffill = "grey", # Colour of the receiver buffer circle fills.
+    recbufalpha = 0,  # Alpha value of receiver buffer fills, 0 (invisible) to 1 (fully visible).
+    reclabcol = "black", # Receiver label text colour.
+    reclabfill = NA, # Receiver label fill colour, NA for no fill.
+    reclabnudgex = 0, # Receiver label offset nudge in X dimension.
+    reclabnudgey = -200, # Receiver label offset nudge in Y dimension.
+    reclabpad = 0, # Receiver label padding in lines.
+    reclabrad = 0.15, # Receiver label radius in lines.
+    reclabbord = 0, # Receiver label border in mm.
+    surface = TRUE
+  )
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+####################### Megan's Reference Code ################################
+
+
+
+#3. Prepare Data, import cleaned detection data
+#df<-read.table(paste(loc,"\\Output_cleaning_scripts1-4\\cleaned.nurse.txt",sep=""),sep=sep,dec=dec,header=T)
+#df$time<-as.POSIXct(df$time,format="%Y-%m-%d %H:%M",tz=dat.TZ)
+#df<-df[1:4]
+#colnames(df)[4] <- "station"
+
+#3b. Load in Receiver Attributes
+#rec.att <- read.csv(".\\rec_attributes\\receiver_attributes.csv",sep=",",dec=".",header=T,stringsAsFactor=F)
+#rec.att<-rec.att[1:7]
+#colnames(rec.att)
+
+#3c. Join databases
+#df <- dplyr::inner_join(df,rec.att, by = "station")
+
+#colnames(df)[1] <- "Datetime"
+#colnames(df)[3] <- "ID"
+#colnames(df)[6] <- "Lat"
+#colnames(df)[7] <- "Lon"
+
+#df<-df[order(df$ID,df$Datetime),]
+
+#write.table(df, file=".\\Output_dBBMMhomeRange\\dBBMM_data.txt",row.names=F,sep=",",dec=".")
+
+#det_range<-df$det_range
+#det_range<-as.vector(det_range)
+#det_range<-as.numeric(det_range)
+
+#rec_names<-df$station_code
+#rec_names<-as.vector(rec_names)
+
+
+#Run dBBMMhomeRange
+dBBMMhomeRange(
+  data = df,
+  ID = "ID",
+  Datetime = "Datetime",
+  Lat = "Lat",
+  Lon = "Lon",
+  Group = NULL,
+  dat.TZ = "America/Belize",
+  proj = sp::CRS("+proj=longlat +datum=WGS84"),
+  projectedCRS = "+init=epsg:32616",
+  sensor = "VR2W",
+  moveLocError = det_range,
+  timeDiffLong = 2,
+  timeDiffUnits = "hours",
+  center = TRUE,
+  buffpct = 0.3,
+  rasterExtent = NULL,
+  rasterCRS = sp::CRS("+proj=utm +zone=16 +datum=WGS84"),
+  rasterResolution = 100,
+  dbblocationerror  = det_range,
+  dbbext = 3,
+  dbbwindowsize = 23,
+  writeRasterFormat = "ascii",
+  writeRasterExtension = ".asc",
+  writeRasterDatatype = "FLT4S",
+  absVolumeAreaSaveName = "VolumeArea_AbsoluteScale.csv",
+  savedir = saveloc,
+  alerts = TRUE
+)
+
+# Scale rasters from 0 to 1. WARNING: MAKE SURE ALL INDIVIDUAL-LEVEL UDs OF INTEREST HAVE BEEN CREATED FIRST BEFORE RUNNING SCALERASTER()
+scaleraster(
+  path = paste0(scalepath), #No terminal slash
+  pathsubsets = paste0(scalepath), # Location of files created by dBBMM.build. No terminal slash.
+  pattern = ".asc",
+  weighting = 1,
+  # weighting to divide individual and summed-scaled rasters by, for unbalanced arrays
+  format = "ascii",
+  datatype = "FLT4S",
+  bylayer = TRUE,
+  overwrite = TRUE,
+  scalefolder = "Scaled",
+  weightedsummedname = "All_Rasters_Weighted_Summed",
+  scaledweightedname = "All_Rasters_Scaled_Weighted",
+  crsloc = paste0(saveloc),
+  # location of saved CRS Rds file from dBBMM.build.R. Should be same as path.
+  returnObj = FALSE
+)
+beep(4)
+
+#################Don't Need to Run-- Skip this section#####################
+
+# The region-level rasters have different extents. Fix this with the next code.
+alignraster(
+  folderroots = c(paste0(saveloc, spp.f, "/", "North/"), # character vector of locations of folder roots output by dBBMMhomeRange. Function expects CRS.Rds file and a subfolder with the scaled raster.
+                  paste0(saveloc, spp.f, "/", "Central/"),
+                  paste0(saveloc, spp.f, "/", "South/")),
+  foldernames = c("North",
+                  "Central",
+                  "South"), # character vector names of folders corresponding to files in folderroots, i.e. the names of the objects, arrays, regions, etc.
+  pattern = ".asc", # for input rasters from scaleraster
+  scalefolder = "Scaled", # for input rasters from scaleraster
+  scaledweightedname = "All_Rasters_Scaled_Weighted_UDScaled", # for input rasters from scaleraster
+  savefolder = paste0(saveloc, spp.f, "/", "Aligned/"), # single character entry, no trailing slash
+  format = "ascii", # save format
+  datatype = "FLT4S", # save format
+  bylayer = TRUE, # save format
+  overwrite = TRUE, # save format
+  returnObj = FALSE # return rasterlist object?
+)
+beep(4)
+
+
+# Now we need to scale and combine rasters again. But no weighting this time.
+scaleraster(
+  path = paste0(saveloc, spp.f, "/Aligned/"), # Location of files created by dBBMM.build. No terminal slash.
+  pathsubsets = paste0(saveloc, spp.f, "/Aligned/"), # This should be the same as path
+  pattern = ".asc",
+  weighting = 1,
+  # weighting to divide individual and summed-scaled rasters by, for unbalanced arrays
+  format = "ascii",
+  datatype = "FLT4S",
+  bylayer = TRUE,
+  overwrite = TRUE,
+  scalefolder = "Scaled",
+  weightedsummedname = "All_Rasters_Weighted_Summed",
+  scaledweightedname = "All_Rasters_Scaled_Weighted",
+  crsloc = paste0(saveloc, spp.f, "/", "Aligned/"),
+  # location of saved CRS Rds file from dBBMM.build.R. Should be same as path.
+  returnObj = FALSE
+)
+beep(4)
+
+####################End of Skipped Section ##########################
+
+
+################################
+
+
+# Now plot the data
+dBBMMplot(
+  x = paste0(saveloc,"Scaled\\All_Rasters_Scaled_Weighted_UDScaled.asc"), # path to scaled data
+  crsloc = paste0(saveloc), # Location of saved CRS Rds file from dBBMM.build.R. Should be same as path.
+  trim = TRUE, # remove NA & 0 values and crop to remaining date extents? Default TRUE
+  myLocation =  c(-87.890162, 16.700359,-87.753383, 16.801035), # location for extents, format c(xmin, ymin, xmax, ymax).
+  # Default NULL, extents autocreated from data.
+  # c(-79.31, 25.69, -79.23, 25.78)
+  googlemap = TRUE, # If pulling basemap from Google maps, this sets expansion
+  # factors since Google Maps tiling zoom setup doesn't align to myLocation
+  # extents.
+  gmapsAPI =  Google_API, # enter your Google maps API here, quoted character string
+  expandfactor = 0, # extents expansion factor for basemap.
+  # 1.3 to 1.5 are the same zoom as 1. 1.6 is a big leap up in zoom (out).
+  # 1.9 & maybe 1.7 or 1.8 is another step out. Ignored if not using Google Maps.
+  mapzoom = 13, # google: 3 (continent) - 21 (building). stamen: 0-18
+  mapsource = "google", # Source for ggmap::get_map; uses Stamen as fallback if no Google Maps API present.
+  maptype = "satellite", # Type of map for ggmap::get_map.
+  contour1colour = "orange", # colour for contour 1, typically 95%.
+  contour2colour = "red", # colour for contour 2, typically 50%.
+  plottitle = "Nurse sharks",
+  # Can use the term 'home range' when an animal can be detected wherever it goes
+  # i.e. using GPS, satellite or acoustic telemetry whereby it is known that acoustic
+  # receivers cover the entire home range of the study species.
+  # This term is problematic when applied to a passive acoustic telemetry setting
+  # where an array of non-overlapping receivers are used to assess local space use patterns
+  # i.e. the home range is bigger than the coverage by the acoustic array; put in Details
+  plotsubtitle = "", # paste0("Scaled contours. n = "), # DET %>% dplyr::distinct(ID) %>% nrow() # 13
+  legendtitle = "",
+  plotcaption = "", # paste0("dBBMM_HomeRange, ", lubridate::today()),
+  axisxlabel = "Longitude",
+  axisylabel = "Latitude",
+  legendposition = c(0.11, 0.75), #%dist (of middle? of legend box) from L to R, %dist from Bot to Top.
+  fontsize = 10,
+  fontfamily = "Arial",
+  filesavename = paste0(lubridate::today(), "_dBBMM-contours.png"),
+  savedir = paste0(saveloc,"Scaled"), # file.path(work.dir, out.dir, "Scaled")
+  receiverlats = df$Lat, # vector of latitudes for receivers to be plotted
+  receiverlons = df$Lon, # vector of longitudes for receivers to be plotted
+  receivernames = NULL, # vector of names for receivers to be plotted --> takes WAY too long to run & doesn't look great, better NULL
+  receiverrange = det_range, # single (will be recycled), or vector of detection ranges in metres for receivers to be plotted
+  recpointscol = "black", # Colour of receiver centrepoint outlines.
+  recpointsfill = "white", # Colour of receiver centrepoint fills.
+  recpointsalpha = 0.5, # Alpha value of receiver centrepoint fills, 0 (invisible) to 1 (fully visible).
+  recpointssize = 1, # Size of receiver points.
+  recpointsshape = 21, # Shape of receiver points, default 21, circle with outline and fill.
+  recbufcol = "grey75", # Colour of the receiver buffer circle outlines.
+  recbuffill = "grey", # Colour of the receiver buffer circle fills.
+  recbufalpha = 0,  # Alpha value of receiver buffer fills, 0 (invisible) to 1 (fully visible).
+  reclabcol = "black", # Receiver label text colour.
+  reclabfill = NA, # Receiver label fill colour, NA for no fill.
+  reclabnudgex = 0, # Receiver label offset nudge in X dimension.
+  reclabnudgey = -200, # Receiver label offset nudge in Y dimension.
+  reclabpad = 0, # Receiver label padding in lines.
+  reclabrad = 0.15, # Receiver label radius in lines.
+  reclabbord = 0, # Receiver label border in mm.
+  surface = TRUE
+)
+beep(4)
+
+################################
+#Plot Individuals
+#Note: All IDs can be run with 13 mapzoon except for ID 13979, which must be run at 12 in order to capture the entire UD
+library(ape)
+filenames = dir(paste0(saveloc,"Scaled\\"), pattern = "^[X]", full.names = FALSE, ignore.case = FALSE)
+for (f in 1:length(filenames)){
+  # Now plot the data
+  dBBMMplot(
+    x = paste0(saveloc,"Scaled\\",filenames[f]), # path to scaled data
+    #dataCRS = 2958, # one of (i) character: a string accepted by GDAL, (ii) integer, a valid EPSG value (numeric), or (iii) an object of class crs.
+    crsloc = paste0(saveloc), # Location of saved CRS Rds file from dBBMM.build.R. Should be same as path.
+    trim = TRUE, # remove NA & 0 values and crop to remaining date extents? Default TRUE
+    myLocation =  NULL, # location for extents, format c(xmin, ymin, xmax, ymax).
+    # Default NULL, extents autocreated from data.
+    # c(-79.31, 25.69, -79.23, 25.78)
+    googlemap = TRUE, # If pulling basemap from Google maps, this sets expansion
+    # factors since Google Maps tiling zoom setup doesn't align to myLocation
+    # extents.
+    gmapsAPI =  Google_API, # enter your Google maps API here, quoted character string
+    expandfactor = 0, # extents expansion factor for basemap.
+    # 1.3 to 1.5 are the same zoom as 1. 1.6 is a big leap up in zoom (out).
+    # 1.9 & maybe 1.7 or 1.8 is another step out. Ignored if not using Google Maps.
+    mapzoom = 13, # google: 3 (continent) - 21 (building). stamen: 0-18
+    mapsource = "google", # Source for ggmap::get_map; uses Stamen as fallback if no Google Maps API present.
+    maptype = "satellite", # Type of map for ggmap::get_map.
+    contour1colour = "orange", # colour for contour 1, typically 95%.
+    contour2colour = "red", # colour for contour 2, typically 50%.
+    plottitle = paste0("Nurse shark: ",tools::file_path_sans_ext(filenames[f])),
+    # Can use the term 'home range' when an animal can be detected wherever it goes
+    # i.e. using GPS, satellite or acoustic telemetry whereby it is known that acoustic
+    # receivers cover the entire home range of the study species.
+    # This term is problematic when applied to a passive acoustic telemetry setting
+    # where an array of non-overlapping receivers are used to assess local space use patterns
+    # i.e. the home range is bigger than the coverage by the acoustic array; put in Details
+    plotsubtitle = "", # paste0("Scaled contours. n = "), # DET %>% dplyr::distinct(ID) %>% nrow() # 13
+    legendtitle = "",
+    plotcaption = "", # paste0("dBBMM_HomeRange, ", lubridate::today()),
+    axisxlabel = "Longitude",
+    axisylabel = "Latitude",
+    legendposition = c(0.12, 0.80), #%dist (of middle? of legend box) from L to R, %dist from Bot to Top.
+    fontsize = 10,
+    fontfamily = "Times New Roman",
+    filesavename = paste0(tools::file_path_sans_ext(filenames[f]),"_dBBMM-contours(z12)", "_", lubridate::today(),".png"),
+    savedir = paste0(saveloc,"Scaled\\Plot"), # file.path(work.dir, out.dir, "Scaled")
+    receiverlats = df$Lat, # vector of latitudes for receivers to be plotted
+    receiverlons = df$Lon, # vector of longitudes for receivers to be plotted
+    receivernames = NULL, # vector of names for receivers to be plotted --> Takes WAY too long to run & doesn't look great. Not Necessary
+    receiverrange = det_range, # single (will be recycled), or vector of detection ranges in metres for receivers to be plotted
+    recpointscol = "black", # Colour of receiver centrepoint outlines.
+    recpointsfill = "white", # Colour of receiver centrepoint fills.
+    recpointsalpha = 0.5, # Alpha value of receiver centrepoint fills, 0 (invisible) to 1 (fully visible).
+    recpointssize = 1, # Size of receiver points.
+    recpointsshape = 21, # Shape of receiver points, default 21, circle with outline and fill.
+    recbufcol = "grey75", # Colour of the receiver buffer circle outlines.
+    recbuffill = "grey", # Colour of the receiver buffer circle fills.
+    recbufalpha = 0,  # Alpha value of receiver buffer fills, 0 (invisible) to 1 (fully visible).
+    reclabcol = "black", # Receiver label text colour.
+    reclabfill = NA, # Receiver label fill colour, NA for no fill.
+    reclabnudgex = 0, # Receiver label offset nudge in X dimension.
+    reclabnudgey = -200, # Receiver label offset nudge in Y dimension.
+    reclabpad = 0, # Receiver label padding in lines.
+    reclabrad = 0.15, # Receiver label radius in lines.
+    reclabbord = 0, # Receiver label border in mm.
+    surface = TRUE
+  )
+}
+##################END###############################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+######################Skip, didn't do a cow plot###########################
+
+# plots to disk so they can be fed to {cowplot}
+
+
+x = paste0(saveloc, spp.f, "/", "Aligned/Scaled/All_Rasters_Scaled_Weighted_UDScaled.asc") # path to scaled data
+# dataCRS = 2958, # one of (i) character: a string accepted by GDAL, (ii) integer, a valid EPSG value (numeric), or (iii) an object of class crs.
+crsloc = paste0(saveloc, spp.f, "/", "Aligned/") # Location of saved CRS Rds file from dBBMM.build.R. Should be same as path.
+trim = TRUE # remove NA & 0 values and crop to remaining date extents? Default TRUE
+myLocation = c(-79.31, 25.69, -79.23, 25.78) # NULL, # location for extents, format c(xmin, ymin, xmax, ymax).
+# Default NULL, extents autocreated from data.
+# c(-79.31, 25.69, -79.23, 25.78)
+googlemap = FALSE # If pulling basemap from Google maps, this sets expansion
+# factors since Google Maps tiling zoom setup doesn't align to myLocation
+# extents.
+gmapsAPI = NULL # enter your Google maps API here, quoted character string
+expandfactor = 1.6 # extents expansion factor for basemap.
+# 1.3 to 1.5 are the same zoom as 1. 1.6 is a big leap up in zoom (out).
+# 1.9 & maybe 1.7 or 1.8 is another step out. Ignored if not using Google Maps.
+mapzoom = 12 # google: 3 (continent) - 21 (building). stamen: 0-18
+mapsource = "stamen" # Source for ggmap::get_map; uses Stamen as fallback if no Google Maps API present.
+maptype = "terrain" # Type of map for ggmap::get_map.
+contour1colour = "orange" # colour for contour 1, typically 95%.
+  contour2colour = "red" # colour for contour 2, typically 50%.
+    plottitle = ""
+    # Can use the term 'home range' when an animal can be detected wherever it goes
+    # i.e. using GPS, satellite or acoustic telemetry whereby it is known that acoustic
+    # receivers cover the entire home range of the study species.
+    # This term is problematic when applied to a passive acoustic telemetry setting
+    # where an array of non-overlapping receivers are used to assess local space use patterns
+    # i.e. the home range is bigger than the coverage by the acoustic array; put in Details
+    plotsubtitle = "" # paste0("Scaled contours. n = "), # DET %>% dplyr::distinct(ID) %>% nrow() # 13
+    legendtitle = ""
+    plotcaption = "" # paste0("dBBMM_HomeRange, ", lubridate::today()),
+    axisxlabel = "Longitude"
+    axisylabel = "Latitude"
+    legendposition = c(0.12, 0.80) #%dist (of middle? of legend box) from L to R, %dist from Bot to Top.
+    fontsize = 12
+    fontfamily = "Times New Roman"
+    filesavename = paste0(lubridate::today(), "_dBBMM-contours.png")
+    savedir = paste0(saveloc, spp.f, "/", "Aligned/Plot/") # file.path(work.dir, out.dir, "Scaled")
+    receiverlats = rec$Lat # vector of latitudes for receivers to be plotted
+    receiverlons = rec$Lon # vector of longitudes for receivers to be plotted
+    receivernames = NULL # vector of names for receivers to be plotted
+    receiverrange = 500 # single (will be recycled), or vector of detection ranges in metres for receivers to be plotted
+    recpointscol = "black" # Colour of receiver centrepoint outlines.
+      recpointsfill = "white" # Colour of receiver centrepoint fills.
+        recpointsalpha = 0.5 # Alpha value of receiver centrepoint fills, 0 (invisible) to 1 (fully visible).
+        recpointssize = 1 # Size of receiver points.
+        recpointsshape = 21 # Shape of receiver points, default 21, circle with outline and fill.
+        recbufcol = "grey75" # Colour of the receiver buffer circle outlines.
+          recbuffill = "grey" # Colour of the receiver buffer circle fills.
+            recbufalpha = 0  # Alpha value of receiver buffer fills, 0 (invisible) to 1 (fully visible).
+            reclabcol = "black" # Receiver label text colour.
+              reclabfill = NA # Receiver label fill colour, NA for no fill.
+              reclabnudgex = 0 # Receiver label offset nudge in X dimension.
+              reclabnudgey = -200 # Receiver label offset nudge in Y dimension.
+              reclabpad = 0 # Receiver label padding in lines.
+              reclabrad = 0.15 # Receiver label radius in lines.
+              reclabbord = 0 # Receiver label border in mm.
+              surface = TRUE
+              
+              # Import raster
+              x <- stars::read_stars(x)
+              # %>% sf::st_set_crs(4326) # 4326 2958
+              dataCRS <- readRDS(paste0(crsloc, "CRS.Rds")) # load CRS from file
+              sf::st_crs(x) <- proj4string(dataCRS) # set CRS
+              
+              # for plotting the surface UD on the map:
+              # surfaceUD <- x %>% sf::st_set_crs(3857) # 4326 = WGS84. Ellipsoidal 2D CS. Axes: latitude, longitude. Orientations: north, east. UoM: degree
+              # %>% sf::st_transform(3857)
+              
+              
+              # if (stars::st_raster_type(x) == "curvilinear") stop(print("x is curvilinear; first reproject to planar"))
+              # Warning message: object ‘is_curvilinear’ is not exported by 'namespace:stars'
+              # https://github.com/r-spatial/stars/issues/464
+              
+              
+              # Trim data to plot surface
+              y <- x # make dupe object else removing all data < 0.05 means the 0.05 contour doesn't work in ggplot
+              if (trim) { # trim raster extent to data?
+                is.na(y[[1]]) <- y[[1]] == 0 # replace char pattern (0) in whole df/tbl with NA
+                is.na(y[[1]]) <- y[[1]] < (max(y[[1]], na.rm = TRUE) * 0.05) # replace anything < 95% contour with NA since it won't be drawn
+              }
+              y %<>% starsExtra::trim2() # remove NA columns, which were all zero columns. This changes the bbox accordingly
+              y[[1]] <- (y[[1]] / max(y[[1]], na.rm = TRUE)) * 100 # convert from raw values to 0:100 scale so legend is 0:100%
+              
+              # if (is.null(myLocation)) myLocation <- y %>% sf::st_transform(4326) %>% sf::st_bbox() %>% as.vector() # trimmer raster extents are smaller than UD95 contours
+              # if (is.null(myLocation)) myLocation <- sf_95 %>% sf::st_transform(4326) %>% sf::st_bbox() %>% as.vector() # not using sf_95 any more
+              if (is.null(myLocation)) myLocation <- stars::st_contour(x = x, contour_lines = TRUE, breaks = max(x[[1]], na.rm = TRUE) * 0.05) %>%
+                sf::st_transform(4326) %>% sf::st_bbox() %>% as.vector()
+              
+              
+              # Create basemap with gbm.auto####
+              # # Remove gbm.auto from dependency at top if not using
+              # dir.create(paste0(out.dir, "basemap"))
+              # bounds <- myLocation[c(1, 3, 2, 4)] # c(xmin,xmax,ymin,ymax)
+              # # run to generate basemap:
+              # crop_map <- gbm.basemap(bounds = bounds,
+              #                         res = "f",
+              #                         # getzip = paste0(work.dir, out.dir, "basemap/GSHHS_shp"), # comment out first time, uncomment subsequent
+              #                         savedir = paste0(work.dir, out.dir, "basemap"),
+              #                         returnsf = TRUE)
+              # # run to use generated basemap later:
+              # crop_map <- st_read(dsn = paste0(work.dir, out.dir, "basemap/CroppedMap/Crop_Map.shp"),
+              #                     layer = paste0("Crop_Map"),
+              #                     quiet = TRUE) # read in worldmap
+              
+              # if (is.null(gmapsAPI)) register_google(key = gmapsAPI, # an api key
+              #                                        account_type = "standard",
+              #                                        write = TRUE)
+              
+              if (mapsource != "google") googlemap <- FALSE # in case user forgot to set both
+              
+              if (expandfactor != 0) { # grow bounds extents if requested
+                xmid <- mean(myLocation[c(1,3)])
+                ymid <- mean(myLocation[c(2,4)])
+                xmax <- ((myLocation[3] - xmid) * expandfactor) + xmid #updated for sf/st
+                xmin <- xmid - ((xmid - myLocation[1]) * expandfactor)
+                ymax <- ((myLocation[4] - ymid) * expandfactor) + ymid
+                ymin <- ymid - ((ymid - myLocation[2]) * expandfactor)
+                myLocation <- c(xmin, ymin, xmax, ymax)
+                if (googlemap) myLocation <- c(mean(c(myLocation[1], myLocation[3])), mean(c(myLocation[2], myLocation[4]))) # googlemap needs a center lon lat
+              }
+              
+              myMap <- ggmap::get_map(
+                location = myLocation, # -62.57564  28.64368  33.78889  63.68533 # stamen etc want a bounding box
+                zoom = mapzoom, # 3 (continent) - 21 (building). Stamen: 0-18
+                # scale = "auto", # default "auto", 1, 2, 4 all the same
+                source = mapsource, # "google" # using stamen as fallback
+                maptype = maptype, # "satellite"
+                messaging = TRUE,
+                crop = TRUE # google maps crs = 4326
+              )
+              
+              # Define a function to fix the bbox to be in EPSG:3857
+              # https://stackoverflow.com/a/50844502/1736291
+              # Fixes "error no lon value" in ggmap below
+              # Move this to separate script & source it####
+              ggmap_bbox <- function(map) {
+                if (!inherits(map, "ggmap")) stop("map must be a ggmap object")
+                # Extract the bounding box (in lat/lon) from the ggmap to a numeric vector,
+                # and set the names to what sf::st_bbox expects:
+                map_bbox <- setNames(unlist(attr(map, "bb")), c("ymin", "xmin", "ymax", "xmax"))
+                # Convert the bbox to an sf polygon, transform it to 3857,
+                # and convert back to a bbox (convoluted, but it works)
+                bbox_3857 <- sf::st_bbox(sf::st_transform(sf::st_as_sfc(sf::st_bbox(map_bbox, crs = 4326)), 3857))
+                # Overwrite the bbox of the ggmap object with the transformed coordinates
+                attr(map, "bb")$ll.lat <- bbox_3857["ymin"]
+                attr(map, "bb")$ll.lon <- bbox_3857["xmin"]
+                attr(map, "bb")$ur.lat <- bbox_3857["ymax"]
+                attr(map, "bb")$ur.lon <- bbox_3857["xmax"]
+                map
+              }
+              myMap <- ggmap_bbox(myMap) # Use the function. Resulting map is CRS 3857
+              
+              # Automate width * height adjustments for different map extent / ratio
+              # 6 (manually chosen width, below), divided by width range times by height range
+              # Maintains ratio by scales height to width(6). Then *1.2 because it still wasn't perfect.
+              # attr(myMap, "bb")[[4]] - attr(myMap, "bb")[[2]] # longitude, x, width, bind as 6
+              # attr(myMap, "bb")[[3]] - attr(myMap, "bb")[[1]] # latitude, y, height
+              autoheight <- (6 / (attr(myMap, "bb")[[4]] - attr(myMap, "bb")[[2]])) * (attr(myMap, "bb")[[3]] - attr(myMap, "bb")[[1]]) * 1.2
+              
+              # Create receiver objects
+              if (!is.null(receiverlats) & !is.null(receiverlons)) {
+                receiver <- data.frame(lon = receiverlons,
+                                       lat = receiverlats)
+                receiver <- sf::st_as_sf(receiver, coords = c("lon","lat")) %>%
+                  sf::st_set_crs(4326) %>%
+                  sf::st_transform(3857)
+                if (!is.null(receivernames)) {
+                  receiver <- cbind(receiver, receivernames)
+                }
+                if (!is.null(receiverrange)) {
+                  receiver <- cbind(receiver, receiverrange)
+                }
+              }
+              
+              # plot map ####
+              nurse_s <- ggmap::ggmap(myMap) + # basemap CRS = 3857
+                
+                # UD surface
+                {if (surface)
+                  stars::geom_stars(data = y %>% sf::st_transform(3857), inherit.aes = FALSE)
+                } +
+                
+                # receiver centrepoints
+                {if (!is.null(receiverlats) & !is.null(receiverlons))
+                  ggplot2::geom_sf(data = receiver %>%
+                                     sf::st_transform(3857), # Vector transform after st_contour
+                                   # already 3857 above so converting twice but it ain't broke
+                                   colour = recpointscol,
+                                   fill = recpointsfill,
+                                   alpha = recpointsalpha,
+                                   size = recpointssize,
+                                   shape = recpointsshape,
+                                   inherit.aes = FALSE,
+                  )
+                } +
+                
+                # receiver buffer circles
+                {if (!is.null(receiverlats) & !is.null(receiverlons) & !is.null(receiverrange))
+                  ggplot2::geom_sf(data = sf::st_buffer(receiver, dist = receiverrange) %>%
+                                     sf::st_transform(3857), # Vector transform after st_contour
+                                   # already 3857 above so converting twice but it ain't broke
+                                   colour = recbufcol,
+                                   fill = recbuffill,
+                                   alpha = recbufalpha,
+                                   inherit.aes = FALSE
+                  )
+                } +
+                
+                # receiver labels
+                {if (!is.null(receiverlats) & !is.null(receiverlons) & !is.null(receivernames))
+                  ggplot2::geom_sf_label(data = receiver %>%
+                                           sf::st_transform(3857), # Vector transform after st_contour
+                                         # already 3857 above so converting twice but it ain't broke
+                                         colour = reclabcol,
+                                         fill = reclabfill,
+                                         inherit.aes = FALSE,
+                                         nudge_x = reclabnudgex,
+                                         nudge_y = reclabnudgey,
+                                         label.padding = unit(reclabpad, "lines"), # 0.25
+                                         label.r = unit(reclabrad, "lines"),
+                                         label.size = reclabbord, # 0.25
+                                         ggplot2::aes(label = receivernames)
+                  )
+                } +
+                
+                # 95% UD
+                # ggplot2::geom_sf(data = sf_95 %>%
+                #                    sf::st_transform(3857), # Vector transform after st_contour
+                #                  # already 3857 above so converting twice but it ain't broke
+                #                  fill = NA, inherit.aes = FALSE,
+                #                  ggplot2::aes(colour = "95% UD")) + # https://github.com/dkahle/ggmap/issues/160#issuecomment-966812818
+                
+                ggplot2::geom_sf(data = stars::st_contour(x = x,
+                                                          contour_lines = TRUE,
+                                                          breaks = max(x[[1]],
+                                                                       na.rm = TRUE) * 0.05),
+                                 fill = NA,
+                                 inherit.aes = FALSE,
+                                 ggplot2::aes(colour = "95% UD")) +
+                
+                # 50% UD
+                # ggplot2::geom_sf(data = sf_50 %>%
+                #                    sf::st_transform(3857),
+                #                  # already 3857 above so converting twice but it ain't broke
+                #                  fill = NA, inherit.aes = FALSE,
+                #                  ggplot2::aes(colour = "50% UD")) +
+                
+                ggplot2::geom_sf(data = stars::st_contour(x = x,
+                                                          contour_lines = TRUE,
+                                                          breaks = max(x[[1]],
+                                                                       na.rm = TRUE) * 0.5),
+                                 fill = NA,
+                                 inherit.aes = FALSE,
+                                 ggplot2::aes(colour = "50% UD")) +
+                
+                # UD surface colours
+                viridis::scale_fill_viridis(
+                  alpha = 1, # 0:1
+                  begin = 0, # hue
+                  end = 1, # hue
+                  direction = 1, # colour order, 1 or -1
+                  discrete = FALSE, # false = continuous
+                  option = "D", # A magma B inferno C plasma D viridis E cividis F rocket G mako H turbo
+                  space = "Lab",
+                  na.value = "grey50",
+                  guide = "colourbar",
+                  aesthetics = "fill",
+                  # name = waiver(),
+                  name = "UD%",
+                  # limits = NA,
+                  # position = "left"
+                  position = "right"
+                ) +
+                
+                # UD contour colours
+                ggplot2::scale_colour_manual(name = legendtitle, values = c("50% UD" = contour2colour, "95% UD" = contour1colour)) +
+                # https://stackoverflow.com/questions/64425970/ggmap-in-r-keep-google-copyright-information-on-cropped-map
+                # scale_x_continuous(limits = c(myLocation[1], myLocation[3]), expand = c(0, 0)) +
+                # scale_y_continuous(limits = c(myLocation[2], myLocation[4]), expand = c(0, 0)) +
+                #   Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+                # Scale for 'x' is already present. Adding another scale for 'x', which will replace the existing scale.
+                # Scale for 'y' is already present. Adding another scale for 'y', which will replace the existing scale.
+                # Warning message: Removed 1 rows containing missing values (geom_rect).
+                
+                ggplot2::ggtitle(plottitle, subtitle = plotsubtitle) +
+                ggplot2::labs(x = axisxlabel, y = axisylabel, caption = plotcaption) +
+                ggplot2::theme_minimal() +
+                ggplot2::theme(
+                  legend.position = legendposition, #%dist (of middle? of legend box) from L to R, %dist from Bot to Top
+                  legend.spacing.x = ggplot2::unit(0, 'cm'), #compress spacing between legend items, this is min
+                  legend.spacing.y = ggplot2::unit(0, 'cm'), #compress spacing between legend items, this is min
+                  legend.title = ggplot2::element_text(size = 8),
+                  legend.text = ggplot2::element_text(size = 8),
+                  legend.background = ggplot2::element_rect(fill = "white", colour = NA), # element_blank(),
+                  panel.background = ggplot2::element_rect(fill = "#99b3cc", colour = "grey50"), # Stamen ocean blue background
+                  plot.background = ggplot2::element_rect(fill = "white", colour = "grey50"), # white background
+                  legend.key = ggplot2::element_blank(),
+                  text = ggplot2::element_text(size = fontsize,  family = fontfamily)
+                ) # removed whitespace buffer around legend boxes which is nice
+              
+              save(nurse_s, file = "~/github/Bimini-multi-elasmo-species-movement-analysis/Output files/dBBMMs/nurse_s.RData")
+              
+              ```
+              
+              Create the cowplot
+              
+              ```{r cowplot}
+              library(tidyverse)
+              library(cowplot)
+              # if(!require(devtools)) install.packages("devtools")
+              # devtools::install_github("kassambara/ggpubr")
+              library(ggpubr)
+              
+              
+              # Load summer maps
+              load("~/github/Bimini-multi-elasmo-species-movement-analysis/Output files/dBBMMs/blacktip_s.RData") #Blacktip
+              load("~/github/Bimini-multi-elasmo-species-movement-analysis/Output files/dBBMMs/bull_s.RData") #Bull
+              load("~/github/Bimini-multi-elasmo-species-movement-analysis/Output files/dBBMMs/reef_s.RData") #C.reef
+              load("~/github/Bimini-multi-elasmo-species-movement-analysis/Output files/dBBMMs/hammer_s.RData") #Great hammerhead
+              load("~/github/Bimini-multi-elasmo-species-movement-analysis/Output files/dBBMMs/lemon_a_s.RData") #Lemon adult
+              load("~/github/Bimini-multi-elasmo-species-movement-analysis/Output files/dBBMMs/lemon_j_s.RData") #Lemon juv
+              load("~/github/Bimini-multi-elasmo-species-movement-analysis/Output files/dBBMMs/nurse_s.RData") #Nurse
+              load("~/github/Bimini-multi-elasmo-species-movement-analysis/Output files/dBBMMs//ray_s.RData") #Southern stingray
+              load("~/github/Bimini-multi-elasmo-species-movement-analysis/Output files/dBBMMs/tiger_s.RData") #Tiger
+              
+              # Prepare plots
+              # bt <- blacktip_s +
+              #   theme_set(theme_cowplot(font_size=12, font_family = "Times")) +
+              #   theme(
+              #     legend.position="none",
+              #     axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+              #     plot.margin = unit(c(1, 0, .5, 1), "cm"),
+              #     axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0), colour = "black"),
+              #     axis.title.x = element_text(margin = margin(t = 0, r = 0, b = 0, l = 0), colour = "white"))
+              #    #scale_x_continuous(labels = function(breaks) {rep_along(breaks, "")})
+              
+              bt <- blacktip_s +
+                theme_set(theme_cowplot(font_size=12, font_family = "Times")) +
+                theme(
+                  legend.position="none",
+                  axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+                  #axis.text.y = element_text(colour = "white"),
+                  plot.margin = unit(c(1, 0, .5, 1), "cm"),
+                  axis.title.y = element_text(margin = margin(t = 0, r = 0, b = 0, l = 0), colour = "black"),
+                  axis.title.x = element_text(margin = margin(t = 0, r = 0, b = 0, l = 0), colour = "white"))
+              #scale_x_continuous(labels = function(breaks) {rep_along(breaks, "")}
+              
+              bu <- bull_s +
+                theme_set(theme_cowplot(font_size=12, font_family = "Times")) +
+                theme(
+                  legend.position="none",
+                  axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+                  #axis.text.y = element_text(colour = "white"),
+                  plot.margin = unit(c(1, 0, .5, 1), "cm"),
+                  axis.title.y = element_text(margin = margin(t = 0, r = 0, b = 0, l = 0), colour = "white"),
+                  axis.title.x = element_text(margin = margin(t = 0, r = 0, b = 0, l = 0), colour = "white"))
+              #scale_x_continuous(labels = function(breaks) {rep_along(breaks, "")})
+              
+              rf <- reef_s +
+                theme_set(theme_cowplot(font_size=12, font_family = "Times")) +
+                theme(
+                  legend.position="none",
+                  axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+                  #axis.text.y = element_text(colour = "white"),
+                  plot.margin = unit(c(1, 0, .5, 1), "cm"),
+                  axis.title.y = element_text(margin = margin(t = 0, r = 0, b = 0, l = 0), colour = "white"),
+                  axis.title.x = element_text(margin = margin(t = 0, r = 0, b = 0, l = 0), colour = "white"))
+              #scale_x_continuous(labels = function(breaks) {rep_along(breaks, "")})
+              
+              hm <- hammer_s +
+                theme_set(theme_cowplot(font_size=12, font_family = "Times")) +
+                theme(
+                  legend.position="none",
+                  axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+                  plot.margin = unit(c(1, 0, .5, 1), "cm"),
+                  axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0), colour = "black"),
+                  axis.title.x = element_text(margin = margin(t = 0, r = 0, b = 0, l = 0), colour = "white"))
+              #scale_x_continuous(labels = function(breaks) {rep_along(breaks, "")})
+              
+              lm.a <- lemon_a_s +
+                theme_set(theme_cowplot(font_size=12, font_family = "Times")) +
+                theme(
+                  legend.position="none",
+                  axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+                  #axis.text.y = element_text(colour = "white"),
+                  plot.margin = unit(c(1, 0, .5, 1), "cm"),
+                  axis.title.y = element_text(margin = margin(t = 0, r = 0, b = 0, l = 0), colour = "white"),
+                  axis.title.x = element_text(margin = margin(t = 0, r = 0, b = 0, l = 0), colour = "white"))
+              #scale_x_continuous(labels = function(breaks) {rep_along(breaks, "")})
+              
+              lm.j <- lemon_j_s +
+                theme_set(theme_cowplot(font_size=12, font_family = "Times")) +
+                theme(
+                  legend.position="none",
+                  axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+                  #axis.text.y = element_text(colour = "white"),
+                  plot.margin = unit(c(1, 0, .5, 1), "cm"),
+                  axis.title.y = element_text(margin = margin(t = 0, r = 0, b = 0, l = 0), colour = "white"),
+                  axis.title.x = element_text(margin = margin(t = 0, r = 0, b = 0, l = 0), colour = "white"))
+              #scale_x_continuous(labels = function(breaks) {rep_along(breaks, "")})
+              
+              nu <- nurse_s +
+                theme_set(theme_cowplot(font_size=12, font_family = "Times")) +
+                theme(
+                  legend.position="none",
+                  axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+                  plot.margin = unit(c(1, 0, .5, 1), "cm"),
+                  axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0), colour = "black"),
+                  axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0), colour = "black"))
+              
+              ra <- ray_s +
+                theme_set(theme_cowplot(font_size=12, font_family = "Times")) +
+                theme(
+                  legend.position="none",
+                  axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+                  #axis.text.y = element_text(colour = "white"),
+                  plot.margin = unit(c(1, 0, .5, 1), "cm"),
+                  axis.title.y = element_text(margin = margin(t = 0, r = 0, b = 0, l = 0), colour = "white"),
+                  axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0), colour = "black"))
+              
+              ti <- tiger_s +
+                theme_set(theme_cowplot(font_size=12, font_family = "Times")) +
+                theme(
+                  legend.position="none",
+                  axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+                  #axis.text.y = element_text(colour = "white"),
+                  plot.margin = unit(c(1, 0, .5, 1), "cm"),
+                  axis.title.y = element_text(margin = margin(t = 0, r = 0, b = 0, l = 0), colour = "white"),
+                  axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0), colour = "black"))
+              
+              # Combine plots
+              UD_plots <- cowplot ::plot_grid(
+                bt, bu, rf, hm, lm.a, lm.j, nu, ra, ti,
+                ncol = 3,
+                labels = "AUTO",
+                label_fontfamily = "Times",
+                label_size = 14,
+                align = "hv"
+                #hjust = -6, #Default = -.5
+                #vjust = 6 #Default = 1.5
+              )
+              
+              # Save to disk
+              cowplot::save_plot(filename = "~/github/Bimini-multi-elasmo-species-movement-analysis/Output files/dBBMMs/UD_plots_summer.png",
+                                 UD_plots, base_height = 20, base_width = 15)
+              
+              
+              
+              # Load winter maps
+              load("~/github/Bimini-multi-elasmo-species-movement-analysis/Output files/dBBMMs/blacktip_w.RData") #Blacktip
+              load("~/github/Bimini-multi-elasmo-species-movement-analysis/Output files/dBBMMs/bull_w.RData") #Bull
+              load("~/github/Bimini-multi-elasmo-species-movement-analysis/Output files/dBBMMs/reef_w.RData") #C.reef
+              load("~/github/Bimini-multi-elasmo-species-movement-analysis/Output files/dBBMMs/hammer_w.RData") #Great hammerhead
+              load("~/github/Bimini-multi-elasmo-species-movement-analysis/Output files/dBBMMs/lemon_a_w.RData") #Lemon adult
+              load("~/github/Bimini-multi-elasmo-species-movement-analysis/Output files/dBBMMs/lemon_j_w.RData") #Lemon juv
+              load("~/github/Bimini-multi-elasmo-species-movement-analysis/Output files/dBBMMs/nurse_w.RData") #Nurse
+              load("~/github/Bimini-multi-elasmo-species-movement-analysis/Output files/dBBMMs/ray_w.RData") #Southern stingray
+              load("~/github/Bimini-multi-elasmo-species-movement-analysis/Output files/dBBMMs/tiger_w.RData") #Tiger
+              
+              # Prepare plots
+              bt <- blacktip_w +
+                theme_set(theme_cowplot(font_size=12, font_family = "Times")) +
+                theme(
+                  legend.position="none",
+                  axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+                  plot.margin = unit(c(1, 0, .5, 1), "cm"),
+                  axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0), colour = "black"),
+                  axis.title.x = element_text(margin = margin(t = 0, r = 0, b = 0, l = 0), colour = "white"))
+              #scale_x_continuous(labels = function(breaks) {rep_along(breaks, "")})
+              
+              bu <- bull_w +
+                theme_set(theme_cowplot(font_size=12, font_family = "Times")) +
+                theme(
+                  legend.position="none",
+                  axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+                  #axis.text.y = element_text(colour = "white"),
+                  plot.margin = unit(c(1, 0, .5, 1), "cm"),
+                  axis.title.y = element_text(margin = margin(t = 0, r = 0, b = 0, l = 0), colour = "white"),
+                  axis.title.x = element_text(margin = margin(t = 0, r = 0, b = 0, l = 0), colour = "white"))
+              #scale_x_continuous(labels = function(breaks) {rep_along(breaks, "")})
+              
+              rf <- reef_w +
+                theme_set(theme_cowplot(font_size=12, font_family = "Times")) +
+                theme(
+                  legend.position="none",
+                  axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+                  #axis.text.y = element_text(colour = "white"),
+                  plot.margin = unit(c(1, 0, .5, 1), "cm"),
+                  axis.title.y = element_text(margin = margin(t = 0, r = 0, b = 0, l = 0), colour = "white"),
+                  axis.title.x = element_text(margin = margin(t = 0, r = 0, b = 0, l = 0), colour = "white"))
+              #scale_x_continuous(labels = function(breaks) {rep_along(breaks, "")})
+              
+              hm <- hammer_w +
+                theme_set(theme_cowplot(font_size=12, font_family = "Times")) +
+                theme(
+                  legend.position="none",
+                  axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+                  plot.margin = unit(c(1, 0, .5, 1), "cm"),
+                  axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0), colour = "black"),
+                  axis.title.x = element_text(margin = margin(t = 0, r = 0, b = 0, l = 0), colour = "white"))
+              #scale_x_continuous(labels = function(breaks) {rep_along(breaks, "")})
+              
+              lm.a <- lemon_a_w +
+                theme_set(theme_cowplot(font_size=12, font_family = "Times")) +
+                theme(
+                  legend.position="none",
+                  axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+                  #axis.text.y = element_text(colour = "white"),
+                  plot.margin = unit(c(1, 0, .5, 1), "cm"),
+                  axis.title.y = element_text(margin = margin(t = 0, r = 0, b = 0, l = 0), colour = "white"),
+                  axis.title.x = element_text(margin = margin(t = 0, r = 0, b = 0, l = 0), colour = "white"))
+              #scale_x_continuous(labels = function(breaks) {rep_along(breaks, "")})
+              
+              lm.j <- lemon_j_w +
+                theme_set(theme_cowplot(font_size=12, font_family = "Times")) +
+                theme(
+                  legend.position="none",
+                  axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+                  #axis.text.y = element_text(colour = "white"),
+                  plot.margin = unit(c(1, 0, .5, 1), "cm"),
+                  axis.title.y = element_text(margin = margin(t = 0, r = 0, b = 0, l = 0), colour = "white"),
+                  axis.title.x = element_text(margin = margin(t = 0, r = 0, b = 0, l = 0), colour = "white"))
+              #scale_x_continuous(labels = function(breaks) {rep_along(breaks, "")})
+              
+              nu <- nurse_w +
+                theme_set(theme_cowplot(font_size=12, font_family = "Times")) +
+                theme(
+                  legend.position="none",
+                  axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+                  plot.margin = unit(c(1, 0, .5, 1), "cm"),
+                  axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0), colour = "black"),
+                  axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0), colour = "black"))
+              
+              ra <- ray_w +
+                theme_set(theme_cowplot(font_size=12, font_family = "Times")) +
+                theme(
+                  legend.position="none",
+                  axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+                  #axis.text.y = element_text(colour = "white"),
+                  plot.margin = unit(c(1, 0, .5, 1), "cm"),
+                  axis.title.y = element_text(margin = margin(t = 0, r = 0, b = 0, l = 0), colour = "white"),
+                  axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0), colour = "black"))
+              
+              ti <- tiger_w +
+                theme_set(theme_cowplot(font_size=12, font_family = "Times")) +
+                theme(
+                  legend.position="none",
+                  axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+                  #axis.text.y = element_text(colour = "white"),
+                  plot.margin = unit(c(1, 0, .5, 1), "cm"),
+                  axis.title.y = element_text(margin = margin(t = 0, r = 0, b = 0, l = 0), colour = "white"),
+                  axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0), colour = "black"))
+              
+              # Combine plots
+              UD_plots <- cowplot ::plot_grid(
+                bt, bu, rf, hm, lm.a, lm.j, nu, ra, ti,
+                ncol = 3,
+                labels = "AUTO",
+                label_fontfamily = "Times",
+                label_size = 14,
+                align = "hv"
+                #hjust = -6, #Default = -.5
+                #vjust = 6 #Default = 1.5
+              )
+              
+              # Save to disk
+              cowplot::save_plot(filename = "~/github/Bimini-multi-elasmo-species-movement-analysis/Output files/dBBMMs/UD_plots_winter.png",
+                                 UD_plots, base_height = 20, base_width = 15)
+              ```
+              
