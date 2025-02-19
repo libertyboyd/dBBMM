@@ -129,7 +129,7 @@ scaleraster(
 # beep(4)
 #
 gmapsAPI = Google_API
-ggmap::register_google(key = "AIzaSyAxbzz1s4zdopMkVXjBPvU-mtPT11WAHgE", account_type = "standard", write = TRUE)
+ggmap::register_google(key = "", account_type = "standard", write = TRUE)
 
 
 # SD from here####
@@ -370,7 +370,7 @@ scaleraster(
 # beep(4)
 #
 gmapsAPI = Google_API
-ggmap::register_google(key = "AIzaSyAxbzz1s4zdopMkVXjBPvU-mtPT11WAHgE", account_type = "standard", write = TRUE)
+ggmap::register_google(key = "", account_type = "standard", write = TRUE)
 
 
 # SD from here####
@@ -611,7 +611,7 @@ scaleraster(
 # beep(4)
 #
 gmapsAPI = Google_API
-ggmap::register_google(key = "AIzaSyAxbzz1s4zdopMkVXjBPvU-mtPT11WAHgE", account_type = "standard", write = TRUE)
+ggmap::register_google(key = "", account_type = "standard", write = TRUE)
 
 
 # SD from here####
@@ -853,7 +853,7 @@ scaleraster(
 # beep(4)
 #
 gmapsAPI = Google_API
-ggmap::register_google(key = "AIzaSyAxbzz1s4zdopMkVXjBPvU-mtPT11WAHgE", account_type = "standard", write = TRUE)
+ggmap::register_google(key = "", account_type = "standard", write = TRUE)
 
 
 # SD from here####
