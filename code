@@ -27,7 +27,7 @@ library("movegroup")
 rm(list = ls())
 #
 # #register google API
-# Google_API <- "AIzaSyDJZBXXj7ln8JyxWmsKAVJUEruFWfdcpL0"       #AIzaSyAxbzz1s4zdopMkVXjBPvU-mtPT11WAHgE #my-dissertation
+# Google_API <- 
 # #1. load necessary libraries
 library(magrittr)
 library(lubridate)
